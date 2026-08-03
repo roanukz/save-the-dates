@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sidecar naming tests</title>
+  <style>
+    /* Always draw this page light, so it stays readable if your browser is set to dark mode. */
+    :root { color-scheme: light; }
+    html, body { background: #fff; }
+    body { font-family: -apple-system, system-ui, sans-serif; margin: 2rem; max-width: 1100px; color: #222; }
+    h1 { font-size: 1.4rem; }
+    .intro { color: #555; line-height: 1.5; max-width: 46rem; }
+    .banner { font-weight: 600; padding: 0.7rem 1rem; border-radius: 6px; font-size: 1.05rem; }
+    .banner-ok { background: #e6f5e9; color: #14622a; }
+    .banner-bad { background: #fdeaea; color: #8a1414; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.82rem; margin-top: 1rem; }
+    th, td { border-bottom: 1px solid #e3e3e3; padding: 0.45rem 0.5rem; text-align: left; vertical-align: top; }
+    th { background: #f4f4f4; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    tr.fail { background: #fdeaea; }
+    td.result { font-weight: 700; white-space: nowrap; }
+    .pass { color: #14622a; }
+    .fail-text { color: #8a1414; }
+    code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.95em; word-break: break-all; }
+    .folder code { display: block; color: #444; }
+    .none { color: #999; font-style: italic; }
+    .note { color: #7a5c00; background: #fff8e1; padding: 0.2rem 0.4rem; border-radius: 4px; display: inline-block; }
+    .num { color: #999; }
+  </style>
+</head>
+<body>
+
+  <h1>Sidecar naming tests</h1>
+
+  <p class="intro">
+    This page runs the real <code>findSidecarFor()</code> out of <code>../app.js</code> against a
+    fixed list of awkward filenames. Nothing is uploaded and no files are read from your computer.
+    Each row is a pretend folder: one photo, plus the sidecar files that are sitting next to it.
+    "Expected" is the sidecar that <em>should</em> be picked. Every row should say PASS.
+  </p>
+
+  <p id="testBanner" class="banner">Running...</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>What it checks</th>
+        <th>Photo</th>
+        <th>Sidecars in the folder</th>
+        <th>Expected</th>
+        <th>Got</th>
+        <th>Result</th>
+      </tr>
+    </thead>
+    <tbody id="testResultsBody"></tbody>
+  </table>
+
+
+  <!-- ------------------------------------------------------------------
+       app.js is the whole app, so when it loads it expects to find the
+       app's screen and its EXIF library. This page has neither, so these
+       stand-ins stop it complaining. They do nothing else.
+       ------------------------------------------------------------------ -->
+  <div hidden>
+    <input type="file" id="folderPicker">
+    <p id="summary"></p>
+    <table id="results"><tbody id="resultsBody"></tbody></table>
+    <div id="fixPanel"><button id="fixButton"></button></div>
+    <p id="progress"></p>
+    <div id="skipped"></div>
+  </div>
+
+  <script>
+    // Stand-in for the EXIF library. app.js adds three tag numbers to it as it loads.
+    window.piexif = { TAGS: { Exif: {} }, ExifIFD: {}, ImageIFD: {}, GPSIFD: {} };
+  </script>
+
+  <script src="../app.js"></script>
+
+  <script>
+  // ---------------------------------------------------------------------
+  // THE TEST CASES
+  //
+  // photo    - the photo filename we are looking up
+  // folder   - the sidecar files that exist next to it
+  // expect   - the sidecar that should be chosen, or null for "no match"
+  // note     - shown in the table when a case is worth explaining
+  // ---------------------------------------------------------------------
+  const CASES = [
+
+    // --- the two formats, both of which appear in the same export ---
+    {
+      what: 'Current format',
+      photo: 'IMG_1234.jpg',
+      folder: ['IMG_1234.jpg.supplemental-metadata.json'],
+      expect: 'IMG_1234.jpg.supplemental-metadata.json'
+    },
+    {
+      what: 'Older format',
+      photo: 'IMG_2222.jpg',
+      folder: ['IMG_2222.jpg.json'],
+      expect: 'IMG_2222.jpg.json'
+    },
+    {
+      what: 'Both formats present, current one wins',
+      photo: 'IMG_3333.jpg',
+      folder: ['IMG_3333.jpg.json', 'IMG_3333.jpg.supplemental-metadata.json'],
+      expect: 'IMG_3333.jpg.supplemental-metadata.json'
+    },
+
+    // --- duplicate counters ---
+    {
+      what: 'Counter, current format: it moves to the END',
+      photo: 'IMG_1234(1).jpg',
+      folder: ['IMG_1234.jpg.supplemental-metadata.json', 'IMG_1234.jpg.supplemental-metadata(1).json'],
+      expect: 'IMG_1234.jpg.supplemental-metadata(1).json'
+    },
+    {
+      what: 'Counter, older format: it sits after the extension',
+      photo: 'IMG_4444(2).jpg',
+      folder: ['IMG_4444.jpg.json', 'IMG_4444.jpg(2).json'],
+      expect: 'IMG_4444.jpg(2).json'
+    },
+    {
+      what: 'A "(1)" photo must NOT steal the plain sidecar',
+      photo: 'IMG_5555(1).jpg',
+      folder: ['IMG_5555.jpg.supplemental-metadata.json'],
+      expect: null
+    },
+    {
+      what: 'A plain photo must NOT steal the "(1)" sidecar',
+      photo: 'IMG_5555.jpg',
+      folder: ['IMG_5555.jpg.supplemental-metadata(1).json'],
+      expect: null
+    },
+
+    // --- clipping at 46 characters ---
+    {
+      what: '28-char name: the tag is partly eaten',
+      photo: 'a_name_of_exactly_24_cha.jpg',
+      folder: ['a_name_of_exactly_24_cha.jpg.supplemental-meta.json'],
+      expect: 'a_name_of_exactly_24_cha.jpg.supplemental-meta.json'
+    },
+    {
+      what: 'Exactly 45 characters: leaves a DOUBLE DOT',
+      photo: 'a_photo_filename_that_is_exactly_45_chars.jpg',
+      folder: ['a_photo_filename_that_is_exactly_45_chars.jpg..json'],
+      expect: 'a_photo_filename_that_is_exactly_45_chars.jpg..json',
+      note: 'Only the leading dot of ".supplemental-metadata" survives.'
+    },
+    {
+      what: 'Exactly 46 characters: ends up looking like the older format',
+      photo: 'a_photo_filename_that_is_exactly_46_chars_.jpg',
+      folder: ['a_photo_filename_that_is_exactly_46_chars_.jpg.json'],
+      expect: 'a_photo_filename_that_is_exactly_46_chars_.jpg.json',
+      note: 'Nothing of the tag is left, so the name is the photo plus ".json".'
+    },
+    {
+      what: 'Longer than 46: tag gone AND the photo name is cut short',
+      photo: 'PXL_20230715_101530123_family_holiday_at_the_beach.jpg',
+      folder: ['PXL_20230715_101530123_family_holiday_at_the_b.json'],
+      expect: 'PXL_20230715_101530123_family_holiday_at_the_b.json'
+    },
+    {
+      what: 'Longer than 46 WITH a counter: the counter is never clipped',
+      photo: 'PXL_20230715_101530123_family_holiday_at_the_beach(1).jpg',
+      folder: ['PXL_20230715_101530123_family_holiday_at_the_b(1).json'],
+      expect: 'PXL_20230715_101530123_family_holiday_at_the_b(1).json'
+    },
+    {
+      what: 'Two similar long photos each keep their own sidecar',
+      photo: 'PXL_20230715_101530123_family_holiday_at_the_park.jpg',
+      folder: [
+        'PXL_20230715_101530123_family_holiday_at_the_b.json',
+        'PXL_20230715_101530123_family_holiday_at_the_p.json'
+      ],
+      expect: 'PXL_20230715_101530123_family_holiday_at_the_p.json'
+    },
+
+    // --- "-edited" photos borrow the original photo's sidecar ---
+    {
+      what: '-edited borrows the current-format sidecar',
+      photo: 'IMG_1234-edited.jpg',
+      folder: ['IMG_1234.jpg.supplemental-metadata.json'],
+      expect: 'IMG_1234.jpg.supplemental-metadata.json'
+    },
+    {
+      what: '-edited borrows the older-format sidecar',
+      photo: 'IMG_7777-edited.jpg',
+      folder: ['IMG_7777.jpg.json'],
+      expect: 'IMG_7777.jpg.json'
+    },
+    {
+      what: '-edited with the counter BEFORE the suffix',
+      photo: 'IMG_8888(1)-edited.jpg',
+      folder: ['IMG_8888.jpg.supplemental-metadata(1).json'],
+      expect: 'IMG_8888.jpg.supplemental-metadata(1).json'
+    },
+    {
+      what: '-edited with the counter AFTER the suffix',
+      photo: 'IMG_8889-edited(1).jpg',
+      folder: ['IMG_8889.jpg.supplemental-metadata(1).json'],
+      expect: 'IMG_8889.jpg.supplemental-metadata(1).json',
+      note: 'Defensive: I have not confirmed Google ever writes the counter here.'
+    },
+    {
+      what: 'An -edited photo with its OWN sidecar keeps it',
+      photo: 'IMG_9999-edited.jpg',
+      folder: [
+        'IMG_9999.jpg.supplemental-metadata.json',
+        'IMG_9999-edited.jpg.supplemental-metadata.json'
+      ],
+      expect: 'IMG_9999-edited.jpg.supplemental-metadata.json'
+    },
+
+    // --- things that must NOT match ---
+    {
+      what: 'No sidecar at all',
+      photo: 'IMG_6060.jpg',
+      folder: [],
+      expect: null
+    },
+    {
+      what: 'Never grabs another photo’s sidecar or a stray JSON file',
+      photo: 'IMG_0001.jpg',
+      folder: [
+        'IMG_0002.jpg.supplemental-metadata.json',
+        'metadata.json',
+        'print-subscriptions.json',
+        'user-generated-memory-titles.json'
+      ],
+      expect: null
+    },
+
+    // --- other extensions and capitals ---
+    {
+      what: 'Capital .JPG still matches',
+      photo: 'IMG_6666.JPG',
+      folder: ['IMG_6666.JPG.supplemental-metadata.json'],
+      expect: 'IMG_6666.JPG.supplemental-metadata.json'
+    },
+    {
+      what: '.jpeg works the same way',
+      photo: 'IMG_7000.jpeg',
+      folder: ['IMG_7000.jpeg.supplemental-metadata.json'],
+      expect: 'IMG_7000.jpeg.supplemental-metadata.json'
+    },
+
+    // --- the rule I am least sure about ---
+    {
+      what: 'Fallback: counter counted INSIDE the 46 characters',
+      photo: 'PXL_20230715_101530123_family_holiday_at_the_beach(1).jpg',
+      folder: ['PXL_20230715_101530123_family_holiday_at_th(1).json'],
+      expect: 'PXL_20230715_101530123_family_holiday_at_th(1).json',
+      note: 'UNSURE. I do not know whether Google ever does this. It is only tried after everything else has failed.'
+    }
+  ];
+
+
+  // ---------------------------------------------------------------------
+  // RUN THEM AND DRAW THE TABLE
+  // ---------------------------------------------------------------------
+  runTests();
+
+  function runTests() {
+    const banner = document.getElementById('testBanner');
+    const body = document.getElementById('testResultsBody');
+
+    // If app.js failed to load, say so plainly instead of showing an empty table.
+    if (typeof findSidecarFor !== 'function') {
+      banner.className = 'banner banner-bad';
+      banner.textContent = 'Could not load findSidecarFor() from ../app.js. ' +
+        'Check that this file is still inside the test-fixtures folder, next to app.js.';
+      return;
+    }
+
+    let passed = 0;
+    let html = '';
+
+    CASES.forEach(function (testCase, index) {
+      const got = findSidecarFor(testCase.photo, testCase.folder);
+      const ok = got === testCase.expect;
+      if (ok) passed++;
+
+      const folderList = testCase.folder.length === 0
+        ? '<span class="none">(empty folder)</span>'
+        : testCase.folder.map(function (n) { return '<code>' + esc(n) + '</code>'; }).join('');
+
+      html += '<tr class="' + (ok ? '' : 'fail') + '">' +
+        '<td class="num">' + (index + 1) + '</td>' +
+        '<td>' + esc(testCase.what) +
+          (testCase.note ? '<br><span class="note">' + esc(testCase.note) + '</span>' : '') + '</td>' +
+        '<td><code>' + esc(testCase.photo) + '</code></td>' +
+        '<td class="folder">' + folderList + '</td>' +
+        '<td>' + show(testCase.expect) + '</td>' +
+        '<td>' + show(got) + '</td>' +
+        '<td class="result ' + (ok ? 'pass' : 'fail-text') + '">' + (ok ? 'PASS' : 'FAIL') + '</td>' +
+        '</tr>';
+    });
+
+    body.innerHTML = html;
+
+    const failed = CASES.length - passed;
+    banner.className = 'banner ' + (failed === 0 ? 'banner-ok' : 'banner-bad');
+    banner.textContent = failed === 0
+      ? 'All ' + CASES.length + ' tests passed.'
+      : failed + ' of ' + CASES.length + ' tests FAILED. The failing rows are shaded red.';
+  }
+
+  /** Shows a sidecar name, or "no match" when there isn't one. */
+  function show(value) {
+    return value === null ? '<span class="none">no match</span>' : '<code>' + esc(value) + '</code>';
+  }
+
+  /** Makes text safe to drop into the page. */
+  function esc(text) {
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+._*
+
+# Editor and tool config that belongs to one machine, not to the project
+.claude/
+.vscode/
+.idea/
+
+# NEVER commit real Takeout data. The sidecar .json files carry the GPS
+# coordinates of wherever the photos were taken, and a photo library is
+# personal data. Test against a folder outside this repo.
+sample-takeout-for-testing/
+Takeout/
+*.zip
+
+# Output the tool produces
+takeout-fixed*.zip
+takeout-fixer-*-report.csv

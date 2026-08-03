@@ -1,0 +1,842 @@
+/* ===========================================================================
+   Takeout Fixer - the look.
+
+   Every colour, size and space in here comes from tokens.css. Nothing reaches
+   for a raw ramp value directly, which is what makes dark mode a matter of
+   remapping roles rather than rewriting components.
+   =========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--size-16);
+  line-height: var(--lh-16);
+  color: var(--text-body);
+  background: var(--page-bg);
+}
+
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-64) var(--space-24) var(--space-96);
+}
+
+/* Every number in the product is tabular, so digits never shuffle sideways
+   as a count climbs. The tail of the font stack does not support the feature,
+   which is why numeric table columns are ALSO right-aligned at a fixed width. */
+.tally-value, .tile-count, .work-count, .col-date, .pager, .chip-count {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+
+/* --- Type ---------------------------------------------------------------- */
+
+h1 {
+  font-size: var(--size-31); line-height: var(--lh-31);
+  letter-spacing: var(--ls-31); font-weight: var(--w-31);
+  color: var(--text-heading);
+  max-width: var(--measure-31);
+  margin: 0 0 var(--space-8);
+}
+
+h2 {
+  font-size: var(--size-25); line-height: var(--lh-25);
+  letter-spacing: var(--ls-25); font-weight: var(--w-25);
+  color: var(--text-heading);
+  margin: 0;
+}
+
+.lead {
+  font-size: var(--size-20); line-height: var(--lh-20);
+  letter-spacing: var(--ls-20); font-weight: var(--w-20);
+  color: var(--text-body);
+  max-width: var(--measure-20);
+  margin: 0 0 var(--space-32);
+}
+
+.help-text {
+  font-size: var(--size-13); line-height: var(--lh-13);
+  letter-spacing: var(--ls-13);
+  color: var(--text-muted);
+  max-width: var(--measure-16);
+  margin: var(--space-12) 0 0;
+}
+
+
+/* --- Icons --------------------------------------------------------------- */
+
+.icon { width: 16px; height: 16px; flex: none; }
+.icon-20 { width: 20px; height: 20px; }
+
+
+/* --- Buttons ------------------------------------------------------------
+   One geometry, three fills. 12px 16px padding on a 16px label at 1.25 gives
+   exactly 44px, which is the touch-target floor hit on the nose. */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-16);
+  font-family: inherit;
+  font-size: var(--size-16);
+  line-height: 1.25;
+  font-weight: 600;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+/* One focus ring on every control type in the system. :focus-visible only,
+   so it appears for keyboards and not for mouse clicks. Never removed. */
+.btn:focus-visible,
+.disclosure:focus-visible,
+.chip:focus-visible,
+.page-btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.btn-primary {
+  background: var(--fill);
+  border-color: var(--fill-border);
+  color: var(--on-fill);
+}
+.btn-primary:hover:enabled { background: var(--fill-hover); border-color: var(--fill-pressed); }
+.btn-primary:active:enabled { background: var(--fill-pressed); }
+
+.btn-secondary {
+  background: var(--surface);
+  border-color: var(--border-default);
+  color: var(--text-heading);
+}
+.btn-secondary:hover:enabled {
+  background: var(--neutral-fill-hover);
+  border-color: var(--border-strong);
+}
+
+.btn:disabled {
+  background: var(--disabled-fill);
+  border-color: var(--disabled-border);
+  color: var(--disabled-text);
+  cursor: not-allowed;
+}
+.btn-secondary:disabled { background: var(--page-bg); }
+
+/* Loading keeps the button's width: only the label word and the icon change,
+   so the control never resizes under the pointer mid-action. */
+.btn[aria-busy="true"] .icon { animation: spin 1.1s linear infinite; }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+  margin-top: var(--space-24);
+}
+
+
+/* --- Links --------------------------------------------------------------- */
+
+a, .disclosure {
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+a:hover, .disclosure:hover {
+  color: var(--link-hover);
+  text-decoration-thickness: 2px;
+}
+
+
+/* --- Notice banner - the fifth semantic ---------------------------------
+   For facts that are neither problems nor confirmations. Its text step is
+   700 rather than 600; at 600 it stops reading as a message at all. */
+
+.notice {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  background: var(--notice-tint);
+  border: 1px solid var(--notice-line);
+  border-left: 3px solid var(--notice-bar);
+  border-radius: var(--radius);
+  padding: var(--space-12) 14px;
+  margin: var(--space-16) 0;
+  max-width: var(--measure-16);
+}
+
+.notice-icon { color: var(--notice-text); margin-top: 3px; }
+
+.notice-label {
+  font-size: var(--size-13); line-height: var(--lh-13);
+  letter-spacing: var(--ls-13); font-weight: 650;
+  color: var(--notice-deep);
+  margin: 0 0 var(--space-2);
+}
+
+.notice-body {
+  font-size: 14px; line-height: 21px;
+  color: var(--text-body);
+  margin: 0;
+}
+
+/* A notice carrying two separate facts needs them apart. Added, not changed:
+   a single .notice-body still has no margin at all. */
+.notice-body + .notice-body { margin-top: var(--space-8); }
+
+
+/* --- Card ---------------------------------------------------------------- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-24);
+  box-shadow: var(--elev-1);
+}
+
+
+/* --- Screen 1: the drop zone -------------------------------------------
+   The three states differ by BORDER as well as by colour - dashed, solid,
+   thick dashed - so they survive being seen without colour. */
+
+.dropzone {
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--page-bg);
+  padding: var(--space-32) var(--space-24);
+  text-align: center;
+}
+
+.dropzone.is-dragover {
+  border: 2px solid var(--primary-500);
+  box-shadow: inset 0 0 0 4px var(--primary-100);
+  background: var(--primary-50);
+}
+
+.dropzone.is-rejected {
+  border: 3px dashed var(--error-500);
+  background: var(--error-tint);
+}
+
+.dz-icon {
+  width: 32px; height: 32px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-12);
+}
+.dropzone.is-dragover .dz-icon { color: var(--primary-600); }
+.dz-icon-error { color: var(--error-text); }
+
+.dz-headline {
+  font-size: var(--size-20); line-height: var(--lh-20);
+  letter-spacing: var(--ls-20); font-weight: var(--w-20);
+  color: var(--text-heading);
+  margin: 0 0 var(--space-4);
+}
+
+/* "Nothing is uploaded" sits above the button, at body size. It is the whole
+   relationship with this tool, so it is not fine print. */
+.dz-privacy {
+  font-size: var(--size-16); line-height: var(--lh-16);
+  color: var(--neutral-600);
+  margin: 0 0 var(--space-16);
+}
+
+.dz-sub, .dz-body {
+  font-size: var(--size-16); line-height: var(--lh-16);
+  color: var(--text-body);
+  max-width: var(--measure-16);
+  margin: 0 auto var(--space-12);
+}
+
+.dz-filename {
+  font-family: var(--font-mono);
+  font-size: var(--size-13); line-height: var(--lh-13);
+  color: var(--error-700);
+  word-break: break-all;
+  margin: 0 0 var(--space-16);
+}
+
+.dropzone.is-dragover .btn-secondary {
+  background: var(--primary-100);
+  border-color: var(--primary-200);
+  color: var(--primary-800);
+}
+
+
+/* --- Screen 2: the wait -------------------------------------------------- */
+
+.work-card { max-width: 720px; }
+
+.work-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  margin-bottom: var(--space-16);
+}
+
+.arc { color: var(--fill); animation: spin 1.1s linear infinite; }
+.arc-track { stroke: var(--primary-200); }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.work-eta {
+  margin-left: auto;
+  font-size: var(--size-13); line-height: var(--lh-13);
+  letter-spacing: var(--ls-13);
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.work-count {
+  font-size: var(--size-16); line-height: var(--lh-16);
+  font-weight: 600;
+  color: var(--text-heading);
+  margin: 0 0 var(--space-8);
+}
+
+/* Signal 2: the bar. A sheen sweeps across it so it keeps moving even while
+   the percentage does not. An indeterminate barber-pole is banned here - it
+   is the universal signal for "we don't know", which is the one thing you
+   cannot say to somebody waiting on their photos. */
+.bar {
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--neutral-200);
+  overflow: hidden;
+  margin-bottom: var(--space-16);
+}
+
+.bar-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 4px;
+  background: var(--fill);
+  transition: width 200ms linear;
+}
+
+.bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent);
+  transform: translateX(-100%);
+  animation: sheen 2.4s ease-in-out infinite;
+}
+
+@keyframes sheen { to { transform: translateX(100%); } }
+
+/* Signal 3: the filename ticker. This is the real anti-frozen device - a name
+   the user recognises, changing. */
+.ticker {
+  background: var(--page-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: var(--space-8) var(--space-12);
+  margin-bottom: var(--space-12);
+}
+
+.ticker-label {
+  font-size: var(--size-13); line-height: var(--lh-13);
+  letter-spacing: 0.06em; font-weight: 650;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.ticker-file {
+  font-family: var(--font-mono);
+  font-size: var(--size-13); line-height: var(--lh-13);
+  color: var(--text-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+/* Signal 4: the clock, which ticks whether or not anything else does. */
+.work-elapsed {
+  font-size: var(--size-13); line-height: var(--lh-13);
+  letter-spacing: var(--ls-13);
+  color: var(--text-muted);
+  margin: 0 0 var(--space-16);
+}
+
+/* Signal 5: three tallies, growing independently of the bar. */
+.tallies {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-12);
+  margin-bottom: var(--space-16);
+}
+
+.tally {
+  border: 1px solid;
+  border-radius: var(--radius);
+  padding: var(--space-8) var(--space-12);
+}
+
+.tally-success { background: var(--success-tint); border-color: var(--success-line); }
+.tally-notice  { background: var(--notice-tint);  border-color: var(--notice-line); }
+.tally-warning { background: var(--warning-tint); border-color: var(--warning-line); }
+
+.tally-label {
+  display: block;
+  font-size: var(--size-13); line-height: var(--lh-13);
+  letter-spacing: var(--ls-13); font-weight: 650;
+  margin-bottom: var(--space-2);
+}
+.tally-success .tally-label { color: var(--success-deep); }
+.tally-notice  .tally-label { color: var(--notice-deep); }
+.tally-warning .tally-label { color: var(--warning-deep); }
+
+.tally-value {
+  display: block;
+  font-size: var(--size-25); line-height: var(--lh-25);
+  letter-spacing: var(--ls-25); font-weight: var(--w-25);
+  color: var(--text-heading);
+}
+
+
+/* --- Screen 3: the tiles -------------------------------------------------
+   Three facts, weighted by a bar so the proportion is felt rather than read.
+   "Can't be fixed" is notice slate, never warning amber: the user did nothing
+   wrong, and colouring it as a caution would say they had. */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-16);
+  margin-bottom: var(--space-24);
+}
+
+.tile {
+  border: 1px solid;
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+}
+
+.tile-success { background: var(--success-tint); border-color: var(--success-line); }
+.tile-notice  { background: var(--notice-tint);  border-color: var(--notice-line); }
+.tile-warning { background: var(--warning-tint); border-color: var(--warning-line); }
+
+.tile-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--size-13); line-height: var(--lh-13);
+  letter-spacing: 0.06em; font-weight: 650;
+  text-transform: uppercase;
+  margin-bottom: var(--space-8);
+}
+.tile-success .tile-head { color: var(--success-deep); }
+.tile-notice  .tile-head { color: var(--notice-deep); }
+.tile-warning .tile-head { color: var(--warning-deep); }
+
+.tile-count {
+  font-size: var(--size-39); line-height: var(--lh-39);
+  letter-spacing: var(--ls-39); font-weight: var(--w-39);
+  color: var(--text-heading);
+  margin: 0;
+}
+
+.tile-desc {
+  font-size: var(--size-16); line-height: var(--lh-16);
+  color: var(--text-body);
+  margin: var(--space-4) 0 var(--space-12);
+}
+
+/* Brass is measurement, and only measurement. Never a status, never a control. */
+.tile-bar {
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: var(--space-4);
+}
+.tile-success .tile-bar { background: var(--success-line); }
+.tile-notice  .tile-bar { background: var(--notice-line); }
+.tile-warning .tile-bar { background: var(--warning-line); }
+
+.tile-bar-fill { height: 100%; background: var(--accent-600); border-radius: 3px; }
+
+.tile-pct {
+  font-size: var(--size-13); line-height: var(--lh-13);
+  letter-spacing: var(--ls-13);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+
+/* --- The disclosure ------------------------------------------------------ */
+
+.disclosure-row { margin: var(--space-32) 0 var(--space-12); }
+
+.disclosure {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--size-16);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* Drawn in CSS rather than added to the icon set, which is closed at eight.
+   A chevron is an affordance, not a meaning. */
+.chevron {
+  width: 8px; height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  margin-top: -2px;
+}
+.disclosure[aria-expanded="true"] .chevron { transform: rotate(45deg); margin-top: -4px; }
+
+
+/* --- Filter chips -------------------------------------------------------- */
+
+.chips {
+  display: flex;
+  gap: var(--space-8);
+  margin-bottom: var(--space-12);
+  overflow-x: auto;
+  padding-bottom: var(--space-4);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  white-space: nowrap;
+  font-family: inherit;
+  font-size: var(--size-13); line-height: var(--lh-13);
+  letter-spacing: var(--ls-13); font-weight: 650;
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-default);
+  background: var(--surface);
+  color: var(--text-body);
+  cursor: pointer;
+}
+.chip:hover { border-color: var(--border-strong); background: var(--neutral-fill-hover); }
+.chip[aria-pressed="true"] {
+  background: var(--fill);
+  border-color: var(--fill-border);
+  color: var(--on-fill);
+}
+
+
+/* --- The table ----------------------------------------------------------- */
+
+.table-scroll { border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border-subtle); }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  background: var(--surface);
+}
+
+thead th {
+  background: var(--surface-sunken);
+  font-size: var(--size-13); line-height: var(--lh-13);
+  letter-spacing: 0.06em; font-weight: 650;
+  text-transform: uppercase;
+  color: var(--text-body);
+  text-align: left;
+  padding: var(--space-12);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.col-status { width: 190px; }
+.col-date   { width: 190px; text-align: right; }
+
+tbody td {
+  padding: var(--space-12);
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/* 44px minimum row height, and no zebra striping - the status tints already
+   do that job, and stripes on top of tints is just noise. On a table cell,
+   height behaves as a minimum, which is exactly what is wanted here. */
+tbody td { height: 44px; }
+
+.cell-status { display: inline-flex; align-items: center; gap: var(--space-8); font-weight: 600; }
+
+/* Has to be a block for the ellipsis to work: an inline span ignores its
+   cell's width and runs straight across the columns beside it. */
+.cell-file {
+  display: block;
+  max-width: 100%;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+td.col-date { text-align: right; color: var(--text-body); }
+
+.row-fixed .cell-status { color: var(--success-deep); }
+
+.row-nometa { background: var(--warning-tint); box-shadow: inset 3px 0 0 var(--warning-bar); }
+.row-nometa .cell-status { color: var(--warning-deep); }
+
+.row-unmatched { background: var(--error-tint); box-shadow: inset 4px 0 0 var(--error-bar); }
+.row-unmatched .cell-status { color: var(--error-deep); font-weight: 650; }
+.row-unmatched .cell-file {
+  color: var(--error-deep);
+  font-weight: 650;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+
+/* A blank cell reads as a rendering failure to somebody already worried.
+   Always print something. */
+.empty { color: var(--text-muted); }
+
+
+/* --- Pager --------------------------------------------------------------
+   50 rows a page, never an infinite scroll. A paged list has an end; an
+   endless list of your own broken files does not. */
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  margin-top: var(--space-12);
+  font-size: var(--size-13); line-height: var(--lh-13);
+  color: var(--text-muted);
+}
+
+.page-btn {
+  font-family: inherit;
+  font-size: var(--size-13);
+  font-weight: 650;
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-default);
+  background: var(--surface);
+  color: var(--text-heading);
+  cursor: pointer;
+}
+.page-btn:hover:enabled { background: var(--neutral-fill-hover); border-color: var(--border-strong); }
+.page-btn:disabled { background: var(--page-bg); color: var(--disabled-text); cursor: not-allowed; }
+
+
+/* --- Progress line and the skipped list ---------------------------------- */
+
+.progress {
+  font-size: var(--size-16); line-height: var(--lh-16);
+  font-weight: 600;
+  color: var(--text-heading);
+  margin: var(--space-16) 0 0;
+}
+.progress:empty { margin: 0; }
+
+.skipped-title {
+  font-size: var(--size-16); font-weight: 600;
+  color: var(--text-heading);
+  margin: var(--space-24) 0 var(--space-8);
+}
+
+.skipped-list {
+  margin: 0;
+  padding-left: 22px;
+  font-size: var(--size-13); line-height: var(--lh-13);
+  max-height: 260px;
+  overflow-y: auto;
+}
+.skipped-list li { margin-bottom: 3px; word-break: break-word; }
+.skipped-list .reason { color: var(--error-text); }
+
+
+/* --- The one signature moment -------------------------------------------
+   A changed tally fades up 3px into place. Declared opt-in, so the static
+   version is the default and the animation is the enhancement. Throttled in
+   app.js to one tick per tile per 400ms, or fast machines flicker. */
+
+@media (prefers-reduced-motion: no-preference) {
+  .tally-value.ticked { animation: tally-tick 120ms cubic-bezier(0.2, 0, 0, 1); }
+  .ticker-file.ticked { animation: ticker-fade 140ms cubic-bezier(0.2, 0, 0, 1); }
+}
+
+@keyframes tally-tick {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes ticker-fade {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Under reduced motion the arc and the sheen stop. The bar, the clock, the
+   ticker and the tallies all still update, so five signals degrade to three
+   real ones rather than to none. */
+@media (prefers-reduced-motion: reduce) {
+  .arc, .bar::after, .btn[aria-busy="true"] .icon { animation: none; }
+  .bar-fill { transition: none; }
+}
+
+
+/* --- Below 720px: the table stops being a table -------------------------- */
+
+@media (max-width: 720px) {
+  .page { padding: var(--space-32) var(--space-16) var(--space-64); }
+
+  .tiles { grid-template-columns: 1fr; gap: var(--space-12); }
+  .tile { padding: 14px var(--space-16); }
+
+  .tallies { grid-template-columns: 1fr; }
+
+  .table-scroll { border: 0; }
+
+  table, thead, tbody, tr, td { display: block; width: auto; }
+  thead { display: none; }
+
+  tbody tr {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+    padding: var(--space-12);
+    margin-bottom: var(--space-8);
+  }
+
+  tbody td { border: 0; padding: 0 0 var(--space-4); }
+
+  /* The status word goes on top, because it is what gets scanned. */
+  td.cell-wrap-status { margin-bottom: var(--space-4); }
+
+  /* Never truncated on a small screen: a shortened filename is useless to
+     somebody checking whether the right file was touched. */
+  .cell-file { white-space: normal; word-break: break-all; }
+
+  td.col-date { text-align: left; }
+
+  /* The label travels with its value once the header row is gone. */
+  td.col-date::before {
+    content: attr(data-label) ": ";
+    color: var(--text-muted);
+    font-size: var(--size-13);
+  }
+}
+
+
+/* --- 360px --------------------------------------------------------------- */
+
+@media (max-width: 420px) {
+  /* A three-digit 39px number plus its label does not fit on one line, and a
+     wrapped tile label is worse than a smaller number. */
+  .tile-count {
+    font-size: var(--size-25); line-height: var(--lh-25);
+    letter-spacing: var(--ls-25);
+    display: inline;
+  }
+  .tile-desc { display: inline; margin-left: var(--space-4); }
+  .tile-bar { margin-top: var(--space-12); }
+
+  /* "Date found" is derivable from "Date written" in the normal case and
+     irrelevant in the failures. It is the one fact worth cutting. */
+  .col-date-found { display: none; }
+
+  .actions .btn { width: 100%; justify-content: center; }
+}
+
+
+/* ===========================================================================
+   THE PAGE AROUND THE TOOL - hero, explanations, footer.
+
+   Everything below this line is NEW furniture for NEW content. Not one rule
+   above it is touched, and every value here comes from tokens.css.
+   =========================================================================== */
+
+
+/* --- The hero ------------------------------------------------------------ */
+
+/* The system had no plain body paragraph, because the three tool screens
+   never needed one. This is that, on the standard 66ch measure. */
+.hero-body {
+  max-width: var(--measure-16);
+  margin: 0 0 var(--space-16);
+}
+
+/* Deliberately NOT capped at a measure. This is four short phrases on one
+   line, not a paragraph, and a 66ch cap would snap it in the middle of one.
+   It still wraps by itself once the screen is genuinely too narrow. */
+.trust {
+  font-size: var(--size-13); line-height: var(--lh-13);
+  letter-spacing: var(--ls-13);
+  color: var(--text-muted);
+  margin: 0 0 var(--space-32);
+}
+
+/* The folder input needs a visible label attached to it, and a <label> is
+   inline where the <p> it replaces was a block. That is the only reason this
+   rule exists - nothing else about the headline changes. */
+label.dz-headline { display: block; }
+
+
+/* --- The explanatory sections -------------------------------------------
+   Native <details> and <summary>. Opening, closing, keyboard operation and
+   screen reader announcement all come free, and no JavaScript is involved. */
+
+.explain {
+  max-width: var(--measure-16);
+  margin-top: var(--space-48);
+}
+
+.explain details { border-bottom: 1px solid var(--border-subtle); }
+.explain details:first-of-type { border-top: 1px solid var(--border-subtle); }
+
+.explain summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-16) 0;
+  cursor: pointer;
+  list-style: none;                                            /* Firefox's triangle */
+}
+.explain summary::-webkit-details-marker { display: none; }    /* Safari's */
+
+/* The same ring as every other control in the system. */
+.explain summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.explain summary h2 { flex: 1; }
+
+/* Reuses the chevron already drawn for the results table's disclosure, and
+   turns it the same way. */
+.explain details[open] > summary .chevron { transform: rotate(45deg); margin-top: -4px; }
+
+/* The panel body: ordinary prose, on the ordinary measure. */
+.explain-body { padding: 0 0 var(--space-24); }
+.explain-body p { margin: 0 0 var(--space-16); }
+.explain-body ul,
+.explain-body ol { margin: 0 0 var(--space-16); padding-left: var(--space-24); }
+.explain-body li { margin-bottom: var(--space-12); }
+.explain-body li p { margin: var(--space-4) 0 0; }
+.explain-body dt { font-weight: 650; color: var(--text-heading); }
+.explain-body dd { margin: var(--space-4) 0 var(--space-16); }
+
+
+/* --- Footer -------------------------------------------------------------- */
+
+.site-footer {
+  max-width: var(--measure-16);
+  margin-top: var(--space-48);
+  padding-top: var(--space-24);
+  border-top: 1px solid var(--border-subtle);
+}

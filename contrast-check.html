@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contrast check — Takeout Fixer design system</title>
+<style>
+  /* This page is rendered in the system's own type and colour on purpose:
+     it is the first real test of the tokens. It deliberately does NOT import
+     tokens.css, because it must keep working as a single self-contained file. */
+  :root {
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI',
+                 system-ui, Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: var(--font-sans);
+    font-size: 16px; line-height: 1.55;
+    color: #3f4653; background: #f7f8f9;
+    margin: 0 auto; padding: 32px 24px 96px; max-width: 1100px;
+  }
+  h1 { font-size: 31px; line-height: 37px; letter-spacing: -0.020em; font-weight: 650;
+       color: #1b2028; margin: 0 0 8px; }
+  h2 { font-size: 25px; line-height: 31px; letter-spacing: -0.016em; font-weight: 650;
+       color: #1b2028; margin: 48px 0 4px; }
+  h3 { font-size: 20px; line-height: 27px; letter-spacing: -0.011em; font-weight: 600;
+       color: #1b2028; margin: 32px 0 8px; }
+  p { max-width: 66ch; margin: 0 0 16px; }
+  .muted { color: #6f7887; font-size: 13px; line-height: 19px; letter-spacing: 0.006em; }
+  code { font-family: var(--font-mono); font-size: 14px; }
+
+  .counts { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 8px; }
+  .pill { font-size: 13px; font-weight: 650; letter-spacing: 0.006em;
+          padding: 4px 10px; border-radius: 6px; border: 1px solid; }
+  .pill-pass { background: #eef7f1; border-color: #aedbbe; color: #164631; }
+  .pill-fail { background: #fdf2f0; border-color: #f5bcb2; color: #68231a; }
+  .pill-exempt { background: #f1f3f7; border-color: #c8d2e0; color: #333b4b; }
+
+  button {
+    font-family: inherit; font-size: 16px; line-height: 1.25; font-weight: 600;
+    padding: 12px 16px; border-radius: 6px; cursor: pointer;
+    background: #1f6379; border: 1px solid #1a4f60; color: #fff;
+  }
+  button:hover { background: #1a4f60; border-color: #163f4c; }
+  button:focus-visible { outline: 2px solid #4c9bb0; outline-offset: 2px; }
+
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 24px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #dfe3e8;
+           vertical-align: middle; font-size: 13px; line-height: 19px; }
+  th { background: #eef0f3; font-size: 13px; font-weight: 650; text-transform: uppercase;
+       letter-spacing: 0.006em; color: #3f4653; position: sticky; top: 0; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums;
+           font-feature-settings: "tnum" 1; width: 9ch; }
+  td.pair { font-family: var(--font-mono); font-size: 12px; }
+  tr.fail { background: #fdf2f0; }
+  tr.fail td { border-bottom-color: #f5bcb2; }
+
+  .verdict { font-weight: 650; }
+  .v-PASS { color: #1f6d49; }
+  .v-FAIL { color: #a13425; }
+  .v-EXEMPT { color: #4f5c74; }
+
+  /* The swatch shows the ACTUAL text on the ACTUAL background at the ACTUAL
+     size and weight. Reading the number is not the same as seeing it. */
+  .swatch { display: inline-flex; align-items: center; justify-content: center;
+            min-width: 132px; padding: 6px 10px; border-radius: 6px; white-space: nowrap; }
+  .swatch-box { display: inline-block; width: 132px; height: 34px; border-radius: 6px; }
+
+  .verify-group { border: 2px solid #8f7833; border-radius: 10px;
+                  padding: 16px 20px; margin: 24px 0; background: #faf7ee; }
+  .verify-group h3 { margin-top: 0; }
+  .note { border: 1px solid #c8d2e0; border-left: 3px solid #4f5c74; background: #f1f3f7;
+          border-radius: 6px; padding: 12px 14px; margin: 16px 0; max-width: 66ch; }
+  .note b { color: #333b4b; }
+</style>
+</head>
+<body>
+
+<h1>Contrast check</h1>
+<p class="muted">
+  Every ratio on this page is computed in your browser, right now, from the token values
+  below. Nothing is hardcoded and nothing is fetched. Sorted so failures come first.
+</p>
+
+<div class="note">
+  <b>When something fails, do not nudge the hex.</b> The fix is almost always "move one
+  step darker or lighter in the same ramp", and that changes the step-mapping table —
+  a design decision, not a value you tune until this page turns green.
+</div>
+
+<p>
+  <button id="copyBtn" type="button">Copy failures as text</button>
+  <span id="copyResult" class="muted"></span>
+</p>
+
+<div id="out"></div>
+
+<script>
+/* ===========================================================================
+   TOKENS — mirrors tokens.css exactly.
+   DEPENDENCY: if a hex changes in tokens.css it must change here too. The two
+   files are kept adjacent in the repo for exactly this reason.
+   =========================================================================== */
+const T = {
+  white: '#ffffff',
+  neutral: { 50:'#f7f8f9',100:'#eef0f3',200:'#dfe3e8',300:'#c8ced7',400:'#9aa3b0',
+             500:'#6f7887',600:'#545c6b',700:'#3f4653',800:'#2b313b',900:'#1b2028',950:'#10141a' },
+  primary: { 50:'#eef6f8',100:'#d7ebf0',200:'#b0d8e2',300:'#7fbdcd',400:'#4c9bb0',
+             500:'#2b7d94',600:'#1f6379',700:'#1a4f60',800:'#163f4c',900:'#13333d',950:'#0b2129' },
+  success: { 50:'#eef7f1',100:'#d6ecdd',200:'#aedbbe',300:'#7cc39a',400:'#4aa576',
+             500:'#2d885c',600:'#1f6d49',700:'#1a583c',800:'#164631',900:'#123829',950:'#0a2319' },
+  warning: { 50:'#fdf6e8',100:'#fae9c6',200:'#f3d38c',300:'#e6b54d',400:'#cf9722',
+             500:'#ab7a13',600:'#8a610f',700:'#6f4e0e',800:'#573e0d',900:'#46320c',950:'#2b1e06' },
+  error:   { 50:'#fdf2f0',100:'#fbdfda',200:'#f5bcb2',300:'#ea9384',400:'#d96450',
+             500:'#c04430',600:'#a13425',700:'#832b1f',800:'#68231a',900:'#551d16',950:'#33110c' },
+  info:    { 50:'#eff4fe',100:'#dbe6fd',200:'#b9cdfa',300:'#8eabf3',400:'#6285e6',
+             500:'#4162cf',600:'#304ca8',700:'#293e86',800:'#22336b',900:'#1d2a56',950:'#111935' },
+  notice:  { 50:'#f1f3f7',100:'#e2e7ef',200:'#c8d2e0',300:'#a7b4c9',400:'#8290ab',
+             500:'#66748f',600:'#4f5c74',700:'#3f4a5e',800:'#333b4b',900:'#2a303d',950:'#191d26' },
+  accent:  { 100:'#faf7ee',200:'#e6d9b3',400:'#c2a862',600:'#8f7833',800:'#5f5027' }
+};
+
+/* --- The maths. Implemented exactly as specified, not approximated. ------- */
+
+function toRgb(hex) {
+  const h = hex.replace('#', '');
+  return [parseInt(h.slice(0,2),16)/255, parseInt(h.slice(2,4),16)/255, parseInt(h.slice(4,6),16)/255];
+}
+function linearise(c) {
+  return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+}
+function luminance(hex) {
+  const [r,g,b] = toRgb(hex).map(linearise);
+  return 0.2126*r + 0.7152*g + 0.0722*b;
+}
+function ratio(a, b) {
+  const la = luminance(a), lb = luminance(b);
+  return (Math.max(la,lb) + 0.05) / (Math.min(la,lb) + 0.05);
+}
+/* Round DOWN for display, compare against the UNROUNDED value.
+   Never let a 4.499 display as "4.50 PASS". */
+function displayRatio(r) {
+  return (Math.floor(r * 100) / 100).toFixed(2);
+}
+
+/* --- Thresholds ----------------------------------------------------------
+   Large text is >=24px, or >=18.66px at weight 700+. Our 39/31/25 are large;
+   20/16/13 are body. 20px sits at weight 600, which is NOT bold, so it stays
+   on the strict 4.5 threshold. */
+function textThreshold(size, weight) {
+  if (size >= 24) return 3;
+  if (size >= 18.66 && weight >= 700) return 3;
+  return 4.5;
+}
+
+/* --- Pairing list --------------------------------------------------------
+   Printed in full further down, so a reader can see what was and was not
+   checked. Each entry: mode, group, fg, bg, names, kind, size, weight,
+   exempt reason, and whether the designer flagged it "verify". */
+const pairs = [];
+function addText(mode, group, fgName, fg, bgName, bg, size, weight, opts) {
+  pairs.push(Object.assign({
+    mode, group, kind:'text', fg, bg, fgName, bgName, size, weight,
+    threshold: textThreshold(size, weight)
+  }, opts || {}));
+}
+function addUi(mode, group, kind, fgName, fg, bgName, bg, opts) {
+  pairs.push(Object.assign({
+    mode, group, kind, fg, bg, fgName, bgName, size:null, weight:null, threshold:3
+  }, opts || {}));
+}
+function addExempt(mode, group, kind, fgName, fg, bgName, bg, reason) {
+  pairs.push({ mode, group, kind, fg, bg, fgName, bgName, size:null, weight:null,
+               threshold:null, exempt:reason });
+}
+
+const SEMANTICS = ['success','warning','error','info','notice'];
+/* Notice takes step 700 in light and 200 in dark — it inverts its own exception. */
+const lightTextStep = s => (s === 'notice' ? 700 : 600);
+const darkTextStep  = s => (s === 'notice' ? 200 : 300);
+
+/* ---- LIGHT: neutral text on neutral surfaces ---- */
+[['white', T.white], ['neutral-50', T.neutral[50]], ['neutral-100', T.neutral[100]]]
+.forEach(([bgName, bg]) => {
+  addText('light','Neutral on neutral','neutral-500',T.neutral[500],bgName,bg,13,400,
+    { verify: bgName === 'white' });
+  addText('light','Neutral on neutral','neutral-500',T.neutral[500],bgName,bg,16,400);
+  addText('light','Neutral on neutral','neutral-700',T.neutral[700],bgName,bg,16,400);
+  addText('light','Neutral on neutral','neutral-700',T.neutral[700],bgName,bg,13,400);
+  addText('light','Neutral on neutral','neutral-900',T.neutral[900],bgName,bg,25,650);
+  addText('light','Neutral on neutral','primary-700 (link)',T.primary[700],bgName,bg,16,400);
+});
+
+/* ---- LIGHT: UI boundaries at 3:1 ---- */
+const lightSurfaces = [['white', T.white], ['neutral-50', T.neutral[50]]]
+  .concat(SEMANTICS.map(s => [s + '-50', T[s][50]]));
+[200,300,400].forEach(step => {
+  lightSurfaces.forEach(([bgName, bg]) => {
+    /* neutral-200 is a divider, not a control boundary — declared exempt below. */
+    if (step === 200) {
+      addExempt('light','Boundaries','boundary','neutral-200',T.neutral[200],bgName,bg,
+        'divider, not a UI boundary');
+    } else {
+      addUi('light','Boundaries','boundary','neutral-'+step,T.neutral[step],bgName,bg,
+        { verify: step === 300 && (bgName === 'white' || bgName === 'neutral-50') });
+    }
+  });
+});
+SEMANTICS.forEach(s => {
+  addUi('light','Boundaries','boundary',s+'-200',T[s][200],s+'-50',T[s][50]);
+  addUi('light','Boundaries','boundary',s+'-200',T[s][200],'white',T.white);
+});
+
+/* ---- LIGHT: focus ring at 3:1 on every surface it can land on ---- */
+[['white',T.white],['neutral-50',T.neutral[50]],['neutral-100',T.neutral[100]],
+ ['primary-600',T.primary[600]],['error-600',T.error[600]]]
+.concat(SEMANTICS.map(s => [s+'-50', T[s][50]]))
+.forEach(([bgName,bg]) => {
+  addUi('light','Focus ring','ring','primary-400',T.primary[400],bgName,bg,{ verify:true });
+});
+
+/* ---- LIGHT: fills ---- */
+[['primary-600',T.primary[600]],['primary-700',T.primary[700]],['primary-800',T.primary[800]],
+ ['error-600',T.error[600]],['error-700',T.error[700]],['success-600',T.success[600]]]
+.forEach(([bgName,bg]) => {
+  addText('light','Fills','white',T.white,bgName,bg,16,600);
+  /* A solid button is itself a UI component, so it must clear 3:1 against the page. */
+  addUi('light','Fills','fill',bgName,bg,'page (neutral-50)',T.neutral[50]);
+});
+
+/* ---- LIGHT: semantic pairs ---- */
+SEMANTICS.forEach(s => {
+  const step = lightTextStep(s);
+  [13,14,16].forEach(size => {
+    addText('light','Semantic — '+s, s+'-'+step, T[s][step], s+'-50', T[s][50], size, 400,
+      { verify: (s === 'warning' || s === 'notice') });
+    addText('light','Semantic — '+s, s+'-'+step, T[s][step], 'white', T.white, size, 400);
+  });
+  addText('light','Semantic — '+s, s+'-800', T[s][800], s+'-50', T[s][50], 16, 600);
+  addText('light','Semantic — '+s, s+'-800', T[s][800], s+'-50', T[s][50], 25, 650);
+  addUi('light','Semantic — '+s, 'bar', s+'-600 (3px bar)', T[s][600], s+'-50', T[s][50]);
+});
+
+/* ---- LIGHT: declared exempt ---- */
+addExempt('light','Exempt','text','neutral-400 (disabled)',T.neutral[400],'neutral-200',T.neutral[200],
+  'WCAG exempts inactive components');
+SEMANTICS.forEach(s => {
+  addExempt('light','Exempt','bar','accent-600 (tile bar)',T.accent[600],s+'-200',T[s][200],
+    'decorative — every number it encodes is also written in text');
+});
+
+/* ---- DARK: neutral text ---- */
+[['neutral-950 (page)',T.neutral[950]],['neutral-900 (surface)',T.neutral[900]]]
+.forEach(([bgName,bg]) => {
+  addText('dark','Neutral on neutral','neutral-400',T.neutral[400],bgName,bg,13,400,
+    { verify: bgName.indexOf('900') > -1 });
+  addText('dark','Neutral on neutral','neutral-400',T.neutral[400],bgName,bg,16,400,
+    { verify: bgName.indexOf('900') > -1 });
+  addText('dark','Neutral on neutral','neutral-200',T.neutral[200],bgName,bg,16,400);
+  addText('dark','Neutral on neutral','neutral-50',T.neutral[50],bgName,bg,25,650);
+  addText('dark','Neutral on neutral','primary-300 (link)',T.primary[300],bgName,bg,16,400);
+});
+
+/* ---- DARK: boundaries ---- */
+[800,700,600].forEach(step => {
+  [['neutral-950',T.neutral[950]],['neutral-900',T.neutral[900]]].forEach(([bgName,bg]) => {
+    addUi('dark','Boundaries','boundary','neutral-'+step,T.neutral[step],bgName,bg);
+  });
+});
+
+/* ---- DARK: focus ring ---- */
+[['neutral-950',T.neutral[950]],['neutral-900',T.neutral[900]],['neutral-800',T.neutral[800]]]
+.concat(SEMANTICS.map(s => [s+'-900', T[s][900]]))
+.forEach(([bgName,bg]) => {
+  addUi('dark','Focus ring','ring','primary-300',T.primary[300],bgName,bg,{ verify:true });
+});
+
+/* ---- DARK: semantic pairs ---- */
+SEMANTICS.forEach(s => {
+  const step = darkTextStep(s);
+  [13,14,16].forEach(size => {
+    addText('dark','Semantic — '+s, s+'-'+step, T[s][step], s+'-900', T[s][900], size, 400,
+      { verify:true });
+    addText('dark','Semantic — '+s, s+'-'+step, T[s][step], 'neutral-900', T.neutral[900], size, 400);
+  });
+  addUi('dark','Semantic — '+s, 'boundary', s+'-700', T[s][700], s+'-900', T[s][900]);
+  /* Text on a semantic solid fill flips to neutral-950 in dark mode. */
+  addText('dark','Semantic — '+s, 'neutral-950', T.neutral[950], s+'-400', T[s][400], 16, 600);
+});
+
+/* ---- DARK: declared exempt ---- */
+addExempt('dark','Exempt','text','neutral-600 (disabled)',T.neutral[600],'neutral-800',T.neutral[800],
+  'WCAG exempts inactive components');
+
+/* --- Evaluate ------------------------------------------------------------ */
+pairs.forEach(p => {
+  p.ratio = ratio(p.fg, p.bg);
+  p.shown = displayRatio(p.ratio);
+  if (p.exempt) p.verdict = 'EXEMPT';
+  else p.verdict = p.ratio >= p.threshold ? 'PASS' : 'FAIL';   /* unrounded comparison */
+});
+
+/* --- Render -------------------------------------------------------------- */
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function swatchFor(p) {
+  if (p.kind === 'text') {
+    return '<span class="swatch" style="background:' + p.bg + ';color:' + p.fg +
+      ';font-size:' + p.size + 'px;font-weight:' + p.weight + '">Photos 312</span>';
+  }
+  if (p.kind === 'ring') {
+    return '<span class="swatch-box" style="background:' + p.bg +
+      ';outline:2px solid ' + p.fg + ';outline-offset:-6px"></span>';
+  }
+  if (p.kind === 'bar') {
+    return '<span class="swatch-box" style="background:' + p.bg +
+      ';border-left:3px solid ' + p.fg + '"></span>';
+  }
+  if (p.kind === 'fill') {
+    return '<span class="swatch-box" style="background:' + p.bg +
+      ';padding:4px"><span style="display:block;height:100%;background:' + p.fg +
+      ';border-radius:4px"></span></span>';
+  }
+  return '<span class="swatch-box" style="background:' + p.bg +
+    ';border:1px solid ' + p.fg + '"></span>';
+}
+function sizeLabel(p) {
+  return p.size ? p.size + 'px/' + p.weight : p.kind;
+}
+function rowFor(p) {
+  return '<tr class="' + (p.verdict === 'FAIL' ? 'fail' : '') + '">' +
+    '<td>' + swatchFor(p) + '</td>' +
+    '<td class="pair">' + esc(p.fgName) + '<br>on ' + esc(p.bgName) + '</td>' +
+    '<td>' + esc(sizeLabel(p)) + '</td>' +
+    '<td class="num">' + p.shown + '</td>' +
+    '<td class="num">' + (p.threshold ? p.threshold.toFixed(1) : '—') + '</td>' +
+    '<td class="verdict v-' + p.verdict + '">' + p.verdict +
+      (p.exempt ? '<br><span class="muted">' + esc(p.exempt) + '</span>' : '') + '</td>' +
+    '</tr>';
+}
+function tableFor(list) {
+  /* Failures sort to the top, everything else keeps its declared order. */
+  const sorted = list.slice().sort((a,b) =>
+    (a.verdict === 'FAIL' ? 0 : 1) - (b.verdict === 'FAIL' ? 0 : 1));
+  return '<table><thead><tr><th>Rendered</th><th>Pairing</th><th>Size/weight</th>' +
+    '<th class="num">Ratio</th><th class="num">Needs</th><th>Verdict</th></tr></thead><tbody>' +
+    sorted.map(rowFor).join('') + '</tbody></table>';
+}
+function countsFor(list) {
+  const n = v => list.filter(p => p.verdict === v).length;
+  return '<div class="counts">' +
+    '<span class="pill pill-pass">' + n('PASS') + ' pass</span>' +
+    '<span class="pill pill-fail">' + n('FAIL') + ' fail</span>' +
+    '<span class="pill pill-exempt">' + n('EXEMPT') + ' exempt</span></div>';
+}
+
+let html = '';
+
+/* The marginal pairings the designer flagged "verify", pulled to the top. */
+const flagged = pairs.filter(p => p.verify);
+html += '<div class="verify-group"><h3>Flagged for verification</h3>' +
+  '<p class="muted">The pairings the designer marked as marginal. These are the ones ' +
+  'most likely to move a step.</p>' + countsFor(flagged) + tableFor(flagged) + '</div>';
+
+['light','dark'].forEach(mode => {
+  const inMode = pairs.filter(p => p.mode === mode);
+  html += '<h2>' + (mode === 'light' ? 'Light' : 'Dark') + '</h2>' + countsFor(inMode);
+  const groups = [];
+  inMode.forEach(p => { if (groups.indexOf(p.group) === -1) groups.push(p.group); });
+  groups.forEach(g => {
+    html += '<h3>' + esc(g) + '</h3>' + tableFor(inMode.filter(p => p.group === g));
+  });
+});
+
+document.getElementById('out').innerHTML = html;
+
+/* --- Copy failures as plain text ---------------------------------------- */
+document.getElementById('copyBtn').addEventListener('click', function () {
+  const fails = pairs.filter(p => p.verdict === 'FAIL');
+  const text = fails.length === 0
+    ? 'No failures.'
+    : fails.map(p =>
+        'FAIL  ' + p.mode + '  ' + p.fgName + ' on ' + p.bgName + '  ' +
+        sizeLabel(p) + '  ' + p.shown + ' (needs ' + p.threshold.toFixed(1) + ')'
+      ).join('\n');
+
+  const done = ok => {
+    document.getElementById('copyResult').textContent =
+      ok ? ' Copied ' + fails.length + ' failure(s).' : ' Could not copy — see console.';
+    if (!ok) console.log(text);
+  };
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => done(true), () => done(false));
+  else done(false);
+});
+</script>
+</body>
+</html>
