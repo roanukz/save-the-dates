@@ -23,10 +23,41 @@
   <link rel="stylesheet" href="style.css">
 
   <!-- A refresh clears everything the tool was holding, so it must also start at
-       the top. Otherwise you reload and land halfway down a results table that
-       no longer exists. Set in the head, before the browser restores anything. -->
+       the top: otherwise you reload and land halfway down a results table that
+       no longer exists. Same guard the teardown carries, kept identical so the
+       two cannot drift. See the longer explanation there. -->
   <script>
+  (function () {
+    var entry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+    var isReload = entry
+      ? entry.type === 'reload'
+      : (performance.navigation && performance.navigation.type === 1);
+
+    if (!isReload) return;
+
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
+    if (location.hash) {
+      history.replaceState(null, '', location.pathname + location.search);
+    }
+
+    var reading = false;
+    ['wheel', 'touchstart', 'keydown'].forEach(function (name) {
+      window.addEventListener(name, function () { reading = true; },
+                              { once: true, passive: true });
+    });
+
+    function holdTop(until) {
+      if (reading) return;
+      window.scrollTo(0, 0);
+      if (performance.now() < until) {
+        requestAnimationFrame(function () { holdTop(until); });
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', function () { window.scrollTo(0, 0); });
+    window.addEventListener('load', function () { holdTop(performance.now() + 400); });
+  })();
   </script>
 </head>
 <body>

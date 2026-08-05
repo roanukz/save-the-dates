@@ -21,14 +21,62 @@
 
 <link rel="stylesheet" href="tokens.css">
 
-<!-- A refresh should put you back at the top of the essay, not wherever you had
-     scrolled to. Browsers restore the old scroll position on reload by default,
-     which on a long page drops the reader into the middle of a section with no
-     heading in view and looks like the page loaded wrong. This has to run in the
-     head, before the browser has a chance to restore anything. Deep links to a
-     section still work: fragment scrolling is separate from restoration. -->
+<!-- A refresh should put you back at the top of the essay, and there are TWO
+     separate things that stop it.
+
+     The first is the address bar. Clicking an entry in the contents leaves a
+     fragment behind, so the URL becomes .../#tldr, and a fragment survives a
+     refresh: the browser re-applies it and drops you back at that section. That
+     is correct behaviour and it is not scroll restoration, which is why setting
+     scrollRestoration alone never fixed it.
+
+     The second is scroll restoration proper, which browsers do on reload, and
+     which Safari has historically done even when asked not to, after the page
+     has already painted. So it is re-asserted on load rather than only here.
+
+     A link somebody shared still lands where it points: this only changes what
+     a RELOAD does, never a fresh navigation. Back and forward keep their
+     position too, because restoration is left alone unless this is a reload.
+
+     Runs in the head so the fragment is gone before the browser acts on it. -->
 <script>
+(function () {
+  var entry = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+  var isReload = entry
+    ? entry.type === 'reload'
+    : (performance.navigation && performance.navigation.type === 1);
+
+  if (!isReload) return;
+
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
+  if (location.hash) {
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+
+  // Browsers put the old scroll position back AFTER the page has painted, and
+  // they do it even when scrollRestoration says manual. A single scrollTo at
+  // load therefore does not hold: it runs, and the restore lands on top of it.
+  // So keep the top for a moment, and let go the instant the reader touches the
+  // page, because fighting somebody for their own scrollbar is worse than the
+  // problem being fixed.
+  var reading = false;
+  ['wheel', 'touchstart', 'keydown'].forEach(function (name) {
+    window.addEventListener(name, function () { reading = true; },
+                            { once: true, passive: true });
+  });
+
+  function holdTop(until) {
+    if (reading) return;
+    window.scrollTo(0, 0);
+    if (performance.now() < until) {
+      requestAnimationFrame(function () { holdTop(until); });
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', function () { window.scrollTo(0, 0); });
+  window.addEventListener('load', function () { holdTop(performance.now() + 400); });
+})();
 </script>
 
 <style>
