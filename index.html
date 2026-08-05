@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Save the Dates — Product Teardown</title>
+<title>Save the Dates: A Product Teardown</title>
 <meta name="description" content="A product teardown of Save the Dates: the problem, the evidence it is real, the decisions I committed to, the measurement that falsified my own premise, and what I would cut.">
 
 <!-- Share card. Same image and treatment as index.html, but title, description
      and og:url describe THIS page - og:url is a canonical hint, so pointing it
      at the site root would make shared teardown links resolve to the tool. -->
-<meta property="og:title" content="Save the Dates - Product Teardown">
+<meta property="og:title" content="Save the Dates: A Product Teardown">
 <meta property="og:description" content="The product thinking behind a free, browser-based tool that repairs Google Photos Takeout dates: the problem, the evidence, the decisions I committed to, the measurement that falsified my own premise, and what I would cut.">
 <meta property="og:image" content="https://roanukz.github.io/save-the-dates/og-image.png?v=4">
 <meta property="og:image:width" content="2400">
@@ -136,14 +136,25 @@ strong { color: var(--text-heading); font-weight: 600; }
 
 /* --- Nav ------------------------------------------------------------------ */
 
-.toc { display: none; }
+/* Shown at every width. A contents list is one of the few things a reader
+   on a phone needs MORE than a reader on a desktop, because they cannot see
+   the shape of a long page by scrolling. It only becomes a sticky rail once
+   there is a column to put it in. */
+.toc { padding-top: var(--space-32); }
+.toc-title {
+  font-size: var(--size-13); text-transform: uppercase; letter-spacing: 0.08em;
+  font-weight: 600; color: var(--text-muted); margin: 0 0 var(--space-12);
+}
+.toc ol {
+  list-style: none; margin: 0; padding: 0;
+  font-size: var(--size-13); line-height: var(--lh-13);
+}
+.toc li { margin-bottom: var(--space-8); }
+.toc a { color: var(--link); }
+
 @media (min-width: 1000px) {
   .toc { display: block; position: sticky; top: var(--space-32); padding-top: var(--space-64); }
-  .toc-title {
-    font-size: var(--size-13); text-transform: uppercase; letter-spacing: 0.08em;
-    font-weight: 600; color: var(--text-muted); margin: 0 0 var(--space-12);
-  }
-  .toc ol { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--border-subtle); }
+  .toc ol { border-left: 1px solid var(--border-subtle); }
   .toc li { margin: 0; }
   .toc a {
     display: block; padding: var(--space-8) var(--space-12);
@@ -271,7 +282,7 @@ footer a { color: var(--link); }
   <div class="wrap">
     <p class="eyebrow">Product teardown</p>
     <h1>Save the Dates</h1>
-    <p class="lede">A Takeout export lands with every file stamped today. I built a tool to fix it, then measured a real export and found my own premise was wrong — which cut a roadmap item and narrowed the product. This is the thinking: the problem, the evidence, the decisions I committed to, and what I would cut.</p>
+    <p class="lede">A Takeout export lands with every file stamped today. I built a tool to fix it, then measured a real export and found my own premise was wrong, which cut a roadmap item and narrowed the product. This is the thinking: the problem, the evidence, the decisions I committed to, and what I would cut.</p>
     <p class="byline">Roanuk Zaman · Product teardown of a tool I designed, directed and shipped</p>
 
     <div class="cta-row">
@@ -286,14 +297,14 @@ footer a { color: var(--link); }
       </div>
       <div class="fact">
         <span class="fact-value">100%</span>
-        <span class="fact-label">Client-side — no upload, no server</span>
+        <span class="fact-label">Client-side, with no upload and no server</span>
       </div>
       <div class="fact">
         <span class="fact-value">Zero</span>
         <span class="fact-label">Network calls at runtime, verifiably</span>
       </div>
       <div class="fact">
-        <span class="fact-value">$25&ndash;50</span>
+        <span class="fact-value">$25 to $50</span>
         <span class="fact-label">What paid tools charge for this job</span>
       </div>
     </div>
@@ -306,13 +317,13 @@ footer a { color: var(--link); }
     <p class="toc-title">Contents</p>
     <ol>
       <li><a href="#tldr">Summary</a></li>
-      <li><a href="#problem">A. The problem</a></li>
-      <li><a href="#evidence">B. The evidence</a></li>
-      <li><a href="#incumbent">C. Why Google won't</a></li>
-      <li><a href="#built">D. What I built</a></li>
-      <li><a href="#next">E. What I'd do next</a></li>
-      <li><a href="#cut">F. What I'd cut</a></li>
-      <li><a href="#frameworks">Method</a></li>
+      <li><a href="#problem">1. The problem</a></li>
+      <li><a href="#evidence">2. The evidence</a></li>
+      <li><a href="#incumbent">3. Why Google won't</a></li>
+      <li><a href="#built">4. What I built</a></li>
+      <li><a href="#next">5. What I would do next</a></li>
+      <li><a href="#cut">6. What I would cut</a></li>
+      <li><a href="#frameworks">Appendix. Method made visible</a></li>
     </ol>
   </nav>
 
@@ -322,7 +333,7 @@ footer a { color: var(--link); }
       <p class="section-kicker">The short version</p>
       <h2>Summary</h2>
       <ul>
-        <li><strong>The problem is real, documented and durable.</strong> Unzipping a Takeout export resets every file's modified date, and for photos that never carried EXIF — or whose dates were edited inside Google Photos — the JSON sidecar is the only copy. Google's late-2024 rename to <code>.supplemental-metadata.json</code> broke the leading free tool. The position is genuinely empty: a free, non-technical, 100% client-side, browser-based repairer. <em>(This bullet previously described the mechanism incorrectly — see the correction in Part A.)</em></li>
+        <li><strong>The problem is real, documented and durable.</strong> Unzipping a Takeout export resets every file's modified date, and for photos that never carried EXIF, or whose dates were edited inside Google Photos, the JSON sidecar is the only copy. Google's late-2024 rename to <code>.supplemental-metadata.json</code> broke the leading free tool. The position is genuinely empty: a free, non-technical, 100% client-side, browser-based repairer. <em>(This bullet previously described the mechanism incorrectly, so see the correction in Part 1.)</em></li>
         <li><strong>Measuring my own premise falsified it, and that cut scope.</strong> I assumed Takeout strips capture dates. It does not. One afternoon with ExifTool over a real 65-file export cut a 10-day roadmap item, narrowed the product's claim, and forced a public correction. That measurement is the most useful thing I did on this project.</li>
         <li><strong>The product judgment is in the costly decisions, not the code.</strong> GPS-derived timezone (a documented reversal), refusing by default to write Google's upload timestamp into a field that reads as a capture time, two deliberately-hard-to-confuse CSV reports, and privacy you can verify rather than take on trust.</li>
         <li><strong>The binding constraint is distribution, not capability.</strong> With one commit and no users, this cannot support market-share claims, and this teardown does not make any. The top three roadmap items are all distribution, not features. That ordering is the point.</li>
@@ -335,13 +346,13 @@ footer a { color: var(--link); }
     </section>
 
     <section id="problem">
-      <p class="section-kicker">Part A</p>
+      <p class="section-kicker">Part 1</p>
       <h2>The problem</h2>
-      <p>When someone leaves Google Photos, they use Google Takeout to export their library — and every photo lands stamped with today's date. The cause is not the one it looks like. Unzipping sets each file's modified date to the moment it was extracted, and Finder, Explorer and a good many import tools sort by that field, so a twenty-year library collapses into a single day. The EXIF inside most of those photos is untouched. Where the export genuinely does lose the <em>when</em> and the <em>where</em> is narrower: photos that never carried EXIF at all, and any date, time or location corrected inside Google Photos. Both of those live only in Google's JSON sidecars, and most photo apps — Apple Photos, Lightroom, Immich, a NAS — read EXIF, not sidecars.</p>
+      <p>When someone leaves Google Photos, they use Google Takeout to export their library, and every photo lands stamped with today's date. The cause is not the one it looks like. Unzipping sets each file's modified date to the moment it was extracted, and Finder, Explorer and a good many import tools sort by that field, so a twenty-year library collapses into a single day. The EXIF inside most of those photos is untouched. Where the export genuinely does lose the <em>when</em> and the <em>where</em> is narrower: photos that never carried EXIF at all, and any date, time or location corrected inside Google Photos. Both of those live only in Google's JSON sidecars, and most photo apps, among them Apple Photos, Lightroom, Immich and a NAS, read EXIF rather than sidecars.</p>
 
       <div class="callout callout-warning">
-        <h4>Correction — 5 August 2026</h4>
-        <p>This page originally claimed that Takeout "strips capture date and GPS into JSON sidecars" and that the photos come out blank. That was wrong, and wrong in the direction that flattered the tool. I measured my own export with ExifTool: of 65 media files spanning 2013–2024, 35 of 45 JPEGs still had their <code>DateTimeOriginal</code> embedded, and all 7 files named <code>.HEIC</code> came out with date <em>and</em> GPS fully intact. (A second surprise from the same measurement: only 3 of those 7 were actually HEIC-encoded — Google had converted the other 4 to JPEG while leaving the <code>.HEIC</code> extension in place. The tool now identifies formats by their bytes, never their filename.) Google's sidecar even carries a <code>geoDataExif</code> block duplicating coordinates already in the file — it copies, it does not move. What actually resets, for every single file, is the file system's modified date, because unzipping stamps each extracted file with the extraction time. That is a different field, and it is the one people are looking at. The 10 files that genuinely needed help had never had EXIF at all, and their sidecar timestamps spanned <strong>16 seconds in total</strong> — the moment they were uploaded, not when they were taken. The honest value of the tool is smaller and sharper than this page first claimed, and it is now stated that way throughout.</p>
+        <h4>Correction, 5 August 2026</h4>
+        <p>This page originally claimed that Takeout "strips capture date and GPS into JSON sidecars" and that the photos come out blank. That was wrong, and wrong in the direction that flattered the tool. I measured my own export with ExifTool: of 65 media files spanning 2013 to 2024, 35 of 45 JPEGs still had their <code>DateTimeOriginal</code> embedded, and all 7 files named <code>.HEIC</code> came out with date <em>and</em> GPS fully intact. (A second surprise from the same measurement: only 3 of those 7 were actually HEIC-encoded, because Google had converted the other 4 to JPEG while leaving the <code>.HEIC</code> extension in place. The tool now identifies formats by their bytes, never their filename.) Google's sidecar even carries a <code>geoDataExif</code> block duplicating coordinates already in the file, so it copies rather than moves. What actually resets, for every single file, is the file system's modified date, because unzipping stamps each extracted file with the extraction time. That is a different field, and it is the one people are looking at. The 10 files that genuinely needed help had never had EXIF at all, and their sidecar timestamps spanned <strong>16 seconds in total</strong>, which is the moment they were uploaded rather than when they were taken. The honest value of the tool is smaller and sharper than this page first claimed, and it is now stated that way throughout.</p>
       </div>
 
       <p>Framed in <strong>Jobs To Be Done</strong> (Clayton Christensen; the hire/fire formulation and the milkshake study from <em>Competing Against Luck</em>, 2016), the user is not hiring a "metadata tool." The functional job is: <em>when I move my photo library off Google, help me keep my memories in the right time and place so my new app shows my life in order.</em></p>
@@ -353,7 +364,7 @@ footer a { color: var(--link); }
         <table>
           <thead><tr><th>Force</th><th>What it looks like here</th></tr></thead>
           <tbody>
-            <tr><td><strong>Push</strong></td><td>The end of free unlimited Google Photos storage — announced 11 November 2020, effective 1 June 2021, citing 4 trillion photos stored and 28 billion uploaded weekly — triggered mass migrations. Account bans and lock-in fear push others.</td></tr>
+            <tr><td><strong>Push</strong></td><td>The end of free unlimited Google Photos storage, announced 11 November 2020 and effective 1 June 2021, citing 4 trillion photos stored and 28 billion uploaded weekly, triggered mass migrations. Account bans and lock-in fear push others.</td></tr>
             <tr><td><strong>Pull</strong></td><td>Self-hosted destinations (Immich) and rival clouds are attractive.</td></tr>
             <tr><td><strong>Anxiety</strong></td><td>"Will a tool corrupt my originals? Do I have to trust a website with my photos and their GPS locations?"</td></tr>
             <tr><td><strong>Habit</strong></td><td>"It is easier to just keep paying Google One."</td></tr>
@@ -365,37 +376,37 @@ footer a { color: var(--link); }
     </section>
 
     <section id="evidence">
-      <p class="section-kicker">Part B</p>
+      <p class="section-kicker">Part 2</p>
       <h2>Evidence the gap is real and recurring</h2>
       <p>This is not a hypothesised problem. It recurs across independent users, communities and years.</p>
 
       <ul class="evidence">
-        <li><span class="src">Adobe Community</span> <span class="yr">— Nov 2019, continuing into 2020</span><br>"Photo exports have wrong dates." Early documentation that Takeout dates import wrong.</li>
-        <li><span class="src">Samsung Community</span> <span class="yr">— May 2021</span><br>Tied to the 1 June 2021 end of free unlimited storage, which triggered mass migrations.</li>
-        <li><span class="src">Adobe</span> <span class="yr">— Jul 2022</span><br>"Can't open the json photos." Users do not even understand what the sidecar files are.</li>
-        <li><span class="src">Immich Discussion #5083</span> <span class="yr">— 2023</span><br><blockquote>Many Immich users are migrating from Google Photos via Google Takeout which uses JSON sidecars… Currently many of us are using scripts or writing small programs to extract this data and edit the exif.</blockquote>Maintainers declined to build it in, pointing users to the third-party immich-go tool. Discussion #21392 raised the same request again for the new format.</li>
-        <li><span class="src">Google Photos Takeout Helper #353</span> <span class="yr">— 2024&ndash;2025</span><br>Documents the late-2024 rename to <code>.supplemental-metadata.json</code> that broke existing tools. User report, verbatim: <blockquote>I have some that are dated to 1868 and 2068.</blockquote></li>
-        <li><span class="src">Ente #4953</span> <span class="yr">— 2025</span><br>A second self-hosted destination hit by the same rename, with some exports using old names and others new.</li>
-        <li><span class="src">Apple Community thread 256157477</span> <span class="yr">— Oct 2025</span><br><blockquote>meta data of all files set to the takeout date, and hence of no use anymore</blockquote>The same thread confirms the timezone problem: Google Photos appears to use UTC rather than local time.</li>
-        <li><span class="src">Hacker News</span> <span class="yr">— Mar 2024, Jun 2024</span><br>Item 40700146, <em>Why Google Takeout is sooo bad</em> (144 points), and the Takeout metadata complaints running through item 39570692, <em>Ente: Open-Source, E2E Encrypted, Google Photos Alternative</em> (964 points).</li>
-        <li><span class="src">ExifTool forum &amp; Lightroom Queen</span> <span class="yr">— various</span><br>Topics 11064, 16079, 14771. Google writes metadata in its own proprietary JSON rather than industry-standard sidecars.</li>
+        <li><span class="src">Adobe Community</span> <span class="yr">Nov 2019, continuing into 2020</span><br>"Photo exports have wrong dates." Early documentation that Takeout dates import wrong.</li>
+        <li><span class="src">Samsung Community</span> <span class="yr">May 2021</span><br>Tied to the 1 June 2021 end of free unlimited storage, which triggered mass migrations.</li>
+        <li><span class="src">Adobe</span> <span class="yr">Jul 2022</span><br>"Can't open the json photos." Users do not even understand what the sidecar files are.</li>
+        <li><span class="src">Immich Discussion #5083</span> <span class="yr">2023</span><br><blockquote>Many Immich users are migrating from Google Photos via Google Takeout which uses JSON sidecars… Currently many of us are using scripts or writing small programs to extract this data and edit the exif.</blockquote>Maintainers declined to build it in, pointing users to the third-party immich-go tool. Discussion #21392 raised the same request again for the new format.</li>
+        <li><span class="src">Google Photos Takeout Helper #353</span> <span class="yr">2024 to 2025</span><br>Documents the late-2024 rename to <code>.supplemental-metadata.json</code> that broke existing tools. User report, verbatim: <blockquote>I have some that are dated to 1868 and 2068.</blockquote></li>
+        <li><span class="src">Ente #4953</span> <span class="yr">2025</span><br>A second self-hosted destination hit by the same rename, with some exports using old names and others new.</li>
+        <li><span class="src">Apple Community thread 256157477</span> <span class="yr">Oct 2025</span><br><blockquote>meta data of all files set to the takeout date, and hence of no use anymore</blockquote>The same thread confirms the timezone problem: Google Photos appears to use UTC rather than local time.</li>
+        <li><span class="src">Hacker News</span> <span class="yr">Mar 2024, Jun 2024</span><br>Item 40700146, <em>Why Google Takeout is sooo bad</em> (144 points), and the Takeout metadata complaints running through item 39570692, <em>Ente: Open-Source, E2E Encrypted, Google Photos Alternative</em> (964 points).</li>
+        <li><span class="src">ExifTool forum &amp; Lightroom Queen</span> <span class="yr">various</span><br>Topics 11064, 16079, 14771. Google writes metadata in its own proprietary JSON rather than industry-standard sidecars.</li>
       </ul>
 
       <div class="callout callout-warning">
         <h4>Freshness check, late 2025 into 2026</h4>
-        <p>The problem is still live and, if anything, worse. The late-2024 rename is still rolling out inconsistently, so a single export can contain the old format, the new format, or both. Google also truncates filenames at 46 characters, producing a slot machine of truncated sidecar names — <code>.supplemental-metadat.json</code>, <code>.supple.json</code>, <code>.s.json</code>. Guides updated in March and April 2026 still describe the wrong-date problem as current. There is no evidence Google has fixed the export behaviour.</p>
+        <p>The problem is still live and, if anything, worse. The late-2024 rename is still rolling out inconsistently, so a single export can contain the old format, the new format, or both. Google also truncates filenames at 46 characters, producing a slot machine of truncated sidecar names: <code>.supplemental-metadat.json</code>, <code>.supple.json</code>, <code>.s.json</code>. Guides updated in March and April 2026 still describe the wrong-date problem as current. There is no evidence Google has fixed the export behaviour.</p>
       </div>
 
-      <p>This is a durable, recurring, independently verified problem, and the format keeps changing in ways that break tools. That last fact is central to the product thesis — see decision 5.</p>
+      <p>This is a durable, recurring, independently verified problem, and the format keeps changing in ways that break tools. That last fact is central to the product thesis, so see decision 5.</p>
     </section>
 
     <section id="incumbent">
-      <p class="section-kicker">Part C</p>
+      <p class="section-kicker">Part 3</p>
       <h2>Why the incumbent does not serve it</h2>
-      <p>Google could re-embed metadata into files at export time. It does not. The honest framing is incentive analysis, not accusation — I am interpreting motive here, so I flag it as inference rather than proven intent.</p>
+      <p>Google could re-embed metadata into files at export time. It does not. The honest framing is incentive analysis, not accusation, and I am interpreting motive here, so I flag it as inference rather than proven intent.</p>
 
       <h3>1. Storage economics</h3>
-      <p>Google does not reassemble a faithful original at export. Edits made inside Google Photos are held in Google's own metadata store and written out as JSON rather than merged back into the file, and the export makes no attempt to carry file timestamps through the zip. Doing either is extra engineering work on data Google deliberately holds separately. There is no upside for Google. <em>(An earlier version of this section repeated a forum claim that Google strips metadata out of the files themselves. It does not — see the correction in Part A.)</em></p>
+      <p>Google does not reassemble a faithful original at export. Edits made inside Google Photos are held in Google's own metadata store and written out as JSON rather than merged back into the file, and the export makes no attempt to carry file timestamps through the zip. Doing either is extra engineering work on data Google deliberately holds separately. There is no upside for Google. <em>(An earlier version of this section repeated a forum claim that Google strips metadata out of the files themselves. It does not, and see the correction in Part 1.)</em></p>
 
       <h3>2. Retention friction</h3>
       <p>A software engineer who documented his own 263 GB extraction argued the friction is a strategy: every one of these friction points exists because Google calculated that most people will give up and keep paying for Google One. Friction on the way out protects subscriptions.</p>
@@ -409,7 +420,7 @@ footer a { color: var(--link); }
     </section>
 
     <section id="built">
-      <p class="section-kicker">Part D</p>
+      <p class="section-kicker">Part 4</p>
       <h2>What I built</h2>
       <p>Save the Dates is a single-page, 100% client-side browser tool. You open <code>tool.html</code>; that is the entire install. No server, no build step, no package manager, no accounts, no database, no analytics, no telemetry, and no network calls at runtime. It restores each photo's real capture date as the file's modified date, and reads Takeout's JSON sidecars to fill in the EXIF of the photos that are genuinely missing a date or a location. It hands back a new copy as a download and never modifies originals.</p>
 
@@ -417,23 +428,23 @@ footer a { color: var(--link); }
 
       <div class="decision">
         <span class="decision-num">Decision 1</span>
-        <h3>GPS-derived timezone — a documented reversal</h3>
-        <p>The original plan recommended the simpler approach: convert the UTC timestamp to the browser's local timezone, disclose it in the UI, and file GPS-derived inference as a future enhancement. I reversed this and built the harder, more correct version — derive the timezone from the photo's GPS position using <code>tz-lookup</code>, not from the machine running the tool. A photo taken at 3pm in London reads 3pm whether the tool runs at home or abroad. Daylight saving is resolved for the actual date via <code>Intl</code>. Photos with no GPS fall back to UTC, exactly as Google stored it. The tool also writes the <code>OffsetTime*</code> tags so apps that understand them can recover the true instant.</p>
+        <h3>GPS-derived timezone: a documented reversal</h3>
+        <p>The original plan recommended the simpler approach: convert the UTC timestamp to the browser's local timezone, disclose it in the UI, and file GPS-derived inference as a future enhancement. I reversed this and built the harder, more correct version, which derives the timezone from the photo's GPS position using <code>tz-lookup</code>, not from the machine running the tool. A photo taken at 3pm in London reads 3pm whether the tool runs at home or abroad. Daylight saving is resolved for the actual date via <code>Intl</code>. Photos with no GPS fall back to UTC, exactly as Google stored it. The tool also writes the <code>OffsetTime*</code> tags so apps that understand them can recover the true instant.</p>
         <ul class="tradeoff">
           <li><span class="k">Cost</span><span>An extra vendored dependency and added complexity.</span></li>
-          <li><span class="k">Bought</span><span>Correct times for travel photos — disproportionately the memories people care about, and the emotional core of the job.</span></li>
+          <li><span class="k">Bought</span><span>Correct times for travel photos, which are disproportionately the memories people care about and the emotional core of the job.</span></li>
           <li><span class="k">Why</span><span>The browser-local approach fails silently and worst precisely for the highest-value photos, and the failure stays invisible until much later.</span></li>
         </ul>
         <p style="margin-top:var(--space-16)">Under Cagan, this is a deliberate acceptance of higher <strong>feasibility</strong> cost to retire a <strong>value</strong> risk: a costly commitment to correctness against the easier path, with the tradeoff stated rather than hidden.</p>
-        <p><em>Qualified by decision 2.</em> This machinery only applies to dates taken from the sidecar — a date already inside a photo is used exactly as the camera recorded it, unconverted. Since the measurement showed most photos keep their own date, and decision 3 stops sidecar-only dates being written by default, this runs far less often than I expected when I built it. It is still right for the case it covers, and it was the correct call on the evidence I had. It is also a fair example of engineering effort spent ahead of measurement.</p>
+        <p><em>Qualified by decision 2.</em> This machinery only applies to dates taken from the sidecar. A date already inside a photo is used exactly as the camera recorded it, unconverted. Since the measurement showed most photos keep their own date, and decision 3 stops sidecar-only dates being written by default, this runs far less often than I expected when I built it. It is still right for the case it covers, and it was the correct call on the evidence I had. It is also a fair example of engineering effort spent ahead of measurement.</p>
       </div>
 
       <div class="decision">
         <span class="decision-num">Decision 2</span>
         <h3>Measured the premise, then cut the roadmap item it justified</h3>
-        <p>I had shipped a tool built on an assumption I had never tested: that Takeout strips capture dates out of photos. Running ExifTool over my own 65-file export falsified it. Of 45 JPEGs, 35 still carried <code>DateTimeOriginal</code>; all 7 files named <code>.HEIC</code> carried date <em>and</em> GPS. Google copies metadata into the sidecars — it does not move it. What is broken for <em>every</em> file is the file system's modified date, reset by unzipping.</p>
-        <p>So the product changed shape. Every file now leaves in the download carrying its real date — JPEG, HEIC, RAW and video alike, without a byte inside them being touched — and only JPEGs that are genuinely missing something are written to. On my own export that means the tool writes nothing at all by default.</p>
-        <p>The same measurement <strong>cut HEIC support</strong>, which had been sitting on the roadmap at 10+ days of effort. It existed to solve a problem I had assumed rather than checked. One afternoon of measurement removed more work than any amount of prioritising would have. Stated honestly: only 3 of those 7 files were genuinely HEIC-encoded — Google had converted the rest to JPEG behind an unchanged extension — so the sample for the cut is small, and I would re-measure on a larger library before treating it as settled.</p>
+        <p>I had shipped a tool built on an assumption I had never tested: that Takeout strips capture dates out of photos. Running ExifTool over my own 65-file export falsified it. Of 45 JPEGs, 35 still carried <code>DateTimeOriginal</code>; all 7 files named <code>.HEIC</code> carried date <em>and</em> GPS. Google copies metadata into the sidecars rather than moving it. What is broken for <em>every</em> file is the file system's modified date, reset by unzipping.</p>
+        <p>So the product changed shape. Every file now leaves in the download carrying its real date, whether JPEG, HEIC, RAW or video, without a byte inside them being touched, and only JPEGs that are genuinely missing something are written to. On my own export that means the tool writes nothing at all by default.</p>
+        <p>The same measurement <strong>cut HEIC support</strong>, which had been sitting on the roadmap at 10+ days of effort. It existed to solve a problem I had assumed rather than checked. One afternoon of measurement removed more work than any amount of prioritising would have. Stated honestly: only 3 of those 7 files were genuinely HEIC-encoded, because Google had converted the rest to JPEG behind an unchanged extension, so the sample for the cut is small, and I would re-measure on a larger library before treating it as settled.</p>
         <ul class="tradeoff">
           <li><span class="k">Cost</span><span>Publishing a correction against my own live page, and a smaller headline claim.</span></li>
           <li><span class="k">Bought</span><span>A roadmap item cut, a scope that matches reality, and a product that is right.</span></li>
@@ -445,8 +456,8 @@ footer a { color: var(--link); }
       <div class="decision">
         <span class="decision-num">Decision 3</span>
         <h3>Refusing to write a guess into a field that looks like a fact</h3>
-        <p>For the 10 photos in my export with no embedded date, Google's sidecar still offered one — and it is tempting to write it in and call the date recovered. Those 10 timestamps spanned <strong>16 seconds in total</strong>, across photos taken years apart. It was one upload, recorded once. It was never a capture time.</p>
-        <p>The tool now labels the source of every date on screen — "from the photo" against "Google's record" — detects the upload-batch pattern and says so in plain language, and leaves those dates <em>out</em> of the file unless you explicitly tick a box. Those files still get the right date on the outside, so the library sorts correctly; what is written inside stays honest.</p>
+        <p>For the 10 photos in my export with no embedded date, Google's sidecar still offered one, and it is tempting to write it in and call the date recovered. Those 10 timestamps spanned <strong>16 seconds in total</strong>, across photos taken years apart. It was one upload, recorded once. It was never a capture time.</p>
+        <p>The tool now labels the source of every date on screen, showing "from the photo" against "Google's record", detects the upload-batch pattern and says so in plain language, and leaves those dates <em>out</em> of the file unless you explicitly tick a box. Those files still get the right date on the outside, so the library sorts correctly; what is written inside stays honest.</p>
         <ul class="tradeoff">
           <li><span class="k">Cost</span><span>The default now does visibly less, and the results screen argues against the tool's own pitch.</span></li>
           <li><span class="k">Bought</span><span>An irreversible, invisible error avoided: once a guess is in <code>DateTimeOriginal</code>, nothing downstream can tell it from a real one.</span></li>
@@ -465,7 +476,7 @@ footer a { color: var(--link); }
       <div class="decision">
         <span class="decision-num">Decision 5</span>
         <h3>Verifiable privacy via vendored libraries</h3>
-        <p>The three third-party libraries are vendored into <code>vendor/</code> and loaded from disk, so the page works with the network turned off — which is also the easiest way to verify the privacy claim.</p>
+        <p>The three third-party libraries are vendored into <code>vendor/</code> and loaded from disk, so the page works with the network turned off, which is also the easiest way to verify the privacy claim.</p>
         <p>This is the sharpest single move in the product. Everyone in this category <em>asserts</em> privacy. This one makes it falsifiable by the user: pull your network cable, and the tool still works, therefore nothing left your machine. That converts a marketing claim into a testable property, and retires the dominant <strong>value</strong> risk in the category without asking anyone to trust me.</p>
       </div>
 
@@ -473,7 +484,7 @@ footer a { color: var(--link); }
         <span class="decision-num">Decision 6</span>
         <h3>Isolating volatile matching logic in <code>findSidecarFor()</code></h3>
         <p>Google's sidecar naming is inconsistent: it truncates long names at 46 characters, moves duplicate counters around, and ships two different sidecar formats in the same export. All of that guesswork is isolated in one function, so the rules can change in one place when Google changes the format again.</p>
-        <p>This is the product thesis expressed as architecture. Part B proved the format changes and breaks tools; GPTH broke on exactly this and, being abandoned, stayed broken. Isolating the volatile logic is a bet that the environment is hostile and will change, and a decision to make the inevitable maintenance cheap. That is product judgment about the problem's dynamics, not engineering flourish.</p>
+        <p>This is the product thesis expressed as architecture. Part 2 proved the format changes and breaks tools; GPTH broke on exactly this and, being abandoned, stayed broken. Isolating the volatile logic is a bet that the environment is hostile and will change, and a decision to make the inevitable maintenance cheap. That is product judgment about the problem's dynamics, not engineering flourish.</p>
       </div>
 
       <div class="decision">
@@ -486,13 +497,13 @@ footer a { color: var(--link); }
         <span class="decision-num">Decision 8</span>
         <h3>A design system with runtime-computed contrast checking</h3>
         <p>Shipped alongside the tool: <code>tokens.css</code> (portable raw values), <code>style.css</code> (components), <code>DESIGN.md</code> and a <code>design/</code> folder documenting the reasoning, and <code>contrast-check.html</code>, which <em>recomputes</em> every contrast ratio in the system at runtime in the browser rather than asserting ratios in prose.</p>
-        <p>This is the same intellectual move as verifiable privacy, applied to accessibility: do not assert the ratio, compute it live so it cannot rot. <em>This page is styled entirely from that token file, unchanged</em> — which is the portability claim tested rather than stated.</p>
+        <p>This is the same intellectual move as verifiable privacy, applied to accessibility: do not assert the ratio, compute it live so it cannot rot. <em>This page is styled entirely from that token file, unchanged</em>, which is the portability claim tested rather than stated.</p>
       </div>
 
       <div class="decision">
         <span class="decision-num">Decision 9</span>
         <h3>Repo hygiene reflecting the privacy thesis</h3>
-        <p>No sample Takeout data is committed and <code>.gitignore</code> enforces it, because sidecar JSON files carry GPS coordinates and therefore constitute personal data. The product's core belief — that this data is sensitive — is enforced even in the repo's plumbing. Also shipped: a vendored-dependency licence table, an MIT licence, and a trademark disclaimer.</p>
+        <p>No sample Takeout data is committed and <code>.gitignore</code> enforces it, because sidecar JSON files carry GPS coordinates and therefore constitute personal data. The product's core belief, that this data is sensitive, is enforced even in the repo's plumbing. Also shipped: a vendored-dependency licence table, an MIT licence, and a trademark disclaimer.</p>
       </div>
 
       <h3>Scope, made legible</h3>
@@ -503,7 +514,7 @@ footer a { color: var(--link); }
             <tr><td><strong>File types</strong></td><td>Correct file date for every media type; EXIF repair for JPEG only</td><td>Rewriting HEIC, RAW or video interiors</td><td>Measurement showed those formats come out of Takeout intact, so there is nothing to repair. Dating them costs nothing and is most of the value for most users.</td></tr>
             <tr><td><strong>Metadata</strong></td><td>File modified date always; DateTimeOriginal, DateTimeDigitized, DateTime, GPS, OffsetTime* only where genuinely missing</td><td>Captions, albums, people tags; overwriting metadata the file already has</td><td>Date and place are the memory-defining fields. Filling a gap is a repair; overwriting a camera's own reading is a change nobody asked for.</td></tr>
             <tr><td><strong>Date provenance</strong></td><td>Labelled per file; upload batches detected and surfaced</td><td>Writing a sidecar-only date into EXIF by default</td><td>A date that exists only in Google's record is when the photo arrived, not when it was taken. Writing it in is irreversible and invisible.</td></tr>
-            <tr><td><strong>Timezone</strong></td><td>GPS-derived, DST-resolved, UTC fallback — for sidecar-sourced dates</td><td>Manual per-photo override; converting a date the file already has</td><td>Correct-by-default for the high-value travel case. A date already in the file is used exactly as the camera recorded it.</td></tr>
+            <tr><td><strong>Timezone</strong></td><td>GPS-derived, DST-resolved, UTC fallback, for sidecar-sourced dates</td><td>Manual per-photo override; converting a date the file already has</td><td>Correct-by-default for the high-value travel case. A date already in the file is used exactly as the camera recorded it.</td></tr>
             <tr><td><strong>Architecture</strong></td><td>Client-side single page</td><td>Server, accounts, cloud processing</td><td>The privacy thesis; also zero infra cost and zero install.</td></tr>
             <tr><td><strong>Output</strong></td><td>New copy as download, batched zips</td><td>In-place modification</td><td>Never risk originals; batching avoids the tab crash on large libraries.</td></tr>
           </tbody>
@@ -511,25 +522,25 @@ footer a { color: var(--link); }
       </div>
 
       <h3>Business viability, stated honestly</h3>
-      <p>There is no business model, and for a portfolio artifact there does not need to be one. But if this were a real venture, viability is the weakest of the four risks. Willingness to pay clearly exists: Metadata Fixer's core app is $39 as a lifetime deal, Proper Takeout is €24.99 one-time after a free tier, and Quiver Photos charges $50 for a lifetime licence. People pay $25&ndash;50 to solve this. A free client-side tool has no capture mechanism and no funded support channel. I am not claiming a business; I am claiming product judgment.</p>
+      <p>There is no business model, and for a portfolio artifact there does not need to be one. But if this were a real venture, viability is the weakest of the four risks. Willingness to pay clearly exists: Metadata Fixer's core app is $39 as a lifetime deal, Proper Takeout is €24.99 one-time after a free tier, and Quiver Photos charges $50 for a lifetime licence. People pay between $25 and $50 to solve this. A free client-side tool has no capture mechanism and no funded support channel. I am not claiming a business; I am claiming product judgment.</p>
 
       <h3>What I got wrong, or would change</h3>
       <ul>
-        <li><strong>I misdiagnosed the mechanism</strong> — see the correction in Part A. I built the tool on a claim about Google's behaviour I had never checked against a real export, and the claim overstated the damage. The fix was to make the tool <em>measure</em> the thing instead of asserting it: it now reads each file's existing metadata before writing anything and reports, per file, whether it needed the tool at all. On my own export the honest answer is that it writes nothing into any photo by default — it fixes 65 file dates and leaves the contents alone. That turns the pitch into something the product itself can contradict, which is where it should have started.</li>
-        <li><strong>I was about to write a guess into a field that looks like a fact.</strong> For the 10 photos that genuinely had no embedded date, the tool was taking Google's <code>photoTakenTime</code> and writing it into <code>DateTimeOriginal</code> as though it were recovered. Those 10 timestamps spanned 16 seconds — one upload of pictures taken years apart. Writing that in would have destroyed the distinction between a known capture time and a guess, permanently and invisibly. The tool now labels where every date came from, detects the upload-batch pattern and says so, and leaves those dates out of the file unless you explicitly ask for them. I have not found another tool in this category that makes the distinction at all.</li>
-        <li><strong>No hosted URL</strong> — the biggest inconsistency between thesis and artifact. A tool whose entire pitch is "no install, just open it" was distributed as a repo you had to clone. <em>Fixed: this page and the tool are now live on GitHub Pages.</em></li>
+        <li><strong>I misdiagnosed the mechanism</strong> , described in the correction in Part 1. I built the tool on a claim about Google's behaviour I had never checked against a real export, and the claim overstated the damage. The fix was to make the tool <em>measure</em> the thing instead of asserting it: it now reads each file's existing metadata before writing anything and reports, per file, whether it needed the tool at all. On my own export the honest answer is that it writes nothing into any photo by default, and it fixes 65 file dates and leaves the contents alone. That turns the pitch into something the product itself can contradict, which is where it should have started.</li>
+        <li><strong>I was about to write a guess into a field that looks like a fact.</strong> For the 10 photos that genuinely had no embedded date, the tool was taking Google's <code>photoTakenTime</code> and writing it into <code>DateTimeOriginal</code> as though it were recovered. Those 10 timestamps spanned 16 seconds, one upload of pictures taken years apart. Writing that in would have destroyed the distinction between a known capture time and a guess, permanently and invisibly. The tool now labels where every date came from, detects the upload-batch pattern and says so, and leaves those dates out of the file unless you explicitly ask for them. I have not found another tool in this category that makes the distinction at all.</li>
+        <li><strong>No hosted URL.</strong> This was the biggest inconsistency between thesis and artifact. A tool whose entire pitch is "no install, just open it" was distributed as a repo you had to clone. <em>Fixed: this page and the tool are now live on GitHub Pages.</em></li>
         <li><strong>Licence ambiguity.</strong> <code>jszip@3.10.1</code> is dual-licensed MIT or GPLv3; the licence table should state which one I am exercising, to avoid ambiguity for anyone reusing the repo.</li>
         <li><strong>HEIC will disappoint some users.</strong> JPEG-only is the right launch scope, but HEIC is now common on iPhones, and "counted and skipped" will block a meaningful subset. I would measure how often it is the blocker before building it.</li>
-        <li><strong>Zero users means zero telemetry-backed claims.</strong> Every statement about user behaviour here is reasoned from third-party evidence, not my own data — which the tool deliberately does not collect. That is the correct privacy choice and a real analytics blind spot at the same time. I would not add telemetry; I would run consented usability sessions instead.</li>
+        <li><strong>Zero users means zero telemetry-backed claims.</strong> Every statement about user behaviour here is reasoned from third-party evidence, not my own data, which the tool deliberately does not collect. That is the correct privacy choice and a real analytics blind spot at the same time. I would not add telemetry; I would run consented usability sessions instead.</li>
       </ul>
     </section>
 
     <section id="next">
-      <p class="section-kicker">Part E</p>
+      <p class="section-kicker">Part 5</p>
       <h2>What I would do next</h2>
       <p>The honest headline: <strong>capability is not the constraint, distribution is.</strong> The tool works and embodies a clear thesis, but it has one commit, no stars and no users. Nothing else on a roadmap matters until a stranger can use it in one click and I can learn from real usage. A tool with zero users cannot support market-share claims, and this document does not make any.</p>
 
-      <p>I prioritise with <strong>RICE</strong> (Sean McBride, Intercom) because its Reach term forces distribution above feature-building, which is exactly the discipline needed here. Impact is scored 0.25&ndash;3, effort in person-days. These are my estimates and I flag them as such.</p>
+      <p>I prioritise with <strong>RICE</strong> (Sean McBride, Intercom) because its Reach term forces distribution above feature-building, which is exactly the discipline needed here. Impact is scored from 0.25 to 3, and effort in person-days. These are my estimates and I flag them as such.</p>
 
       <div class="table-scroll">
         <table>
@@ -540,20 +551,20 @@ footer a { color: var(--link); }
             <tr><td>Post into the threads that already prove the gap</td><td class="num">Medium</td><td class="num">2</td><td class="num">70%</td><td class="num">1 d</td><td class="num">High</td><td>Demand is already assembled in known locations. The cheapest real reach.</td></tr>
             <tr><td>Drag-and-drop the whole Takeout zip, no pre-extraction</td><td class="num">Medium</td><td class="num">2</td><td class="num">70%</td><td class="num">3 d</td><td class="num">Medium</td><td>Competitors' number one friction is "extract everything first." Removing it is a differentiated, in-thesis win.</td></tr>
             <tr><td>Consented, manual usability sessions (5 users)</td><td class="num">Low</td><td class="num">3</td><td class="num">80%</td><td class="num">2 d</td><td class="num">Medium</td><td>The only honest way to get user data without violating the privacy thesis.</td></tr>
-            <tr><td><s>HEIC support</s> — <strong>cut</strong></td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">Cut</td><td>Measurement cut this one. All 7 files named <code>.HEIC</code> in my export came out of Takeout with date and GPS already intact, so there was nothing to repair — the item existed to solve a problem I had assumed rather than checked. They now get correct file dates and are otherwise left alone. See decision 2.</td></tr>
-            <tr><td>Captions and album reconstruction</td><td class="num">Medium</td><td class="num">2</td><td class="num">40%</td><td class="num">8 d</td><td class="num">Low</td><td>There is a gap — GPTH silently drops these — but it is a different, larger job. Defer.</td></tr>
+            <tr><td><s>HEIC support</s>, <strong>cut</strong></td><td class="num">n/a</td><td class="num">n/a</td><td class="num">n/a</td><td class="num">n/a</td><td class="num">Cut</td><td>Measurement cut this one. All 7 files named <code>.HEIC</code> in my export came out of Takeout with date and GPS already intact, so there was nothing to repair, because the item existed to solve a problem I had assumed rather than checked. They now get correct file dates and are otherwise left alone. See decision 2.</td></tr>
+            <tr><td>Captions and album reconstruction</td><td class="num">Medium</td><td class="num">2</td><td class="num">40%</td><td class="num">8 d</td><td class="num">Low</td><td>There is a gap, since GPTH silently drops these, but it is a different and larger job, so defer it.</td></tr>
           </tbody>
         </table>
       </div>
 
       <div class="callout callout-success">
         <h4>The top three are all distribution, not code</h4>
-        <p>That ordering is the finding. Under Teresa Torres's <strong>Opportunity Solution Tree</strong>, the desired outcome is not "more features" — it is "a stranger successfully repairs their library and trusts the result." The top opportunities are discovery, trust and reach problems, so the highest-value next steps attack those rather than the backlog.</p>
+        <p>That ordering is the finding. Under Teresa Torres's <strong>Opportunity Solution Tree</strong>, the desired outcome is not "more features", it is "a stranger successfully repairs their library and trusts the result." The top opportunities are discovery, trust and reach problems, so the highest-value next steps attack those rather than the backlog.</p>
       </div>
     </section>
 
     <section id="cut">
-      <p class="section-kicker">Part F</p>
+      <p class="section-kicker">Part 6</p>
       <h2>What I would cut</h2>
       <p>Using the <strong>Blue Ocean ERRC grid</strong> (Kim and Mauborgne, 2005), which maps unusually well onto "what I would not build," because the strategy is to compete on axes the incumbents ignore rather than to out-feature them.</p>
 
@@ -563,7 +574,7 @@ footer a { color: var(--link); }
           <ul>
             <li>The command line. Every free incumbent competes here; it is the single biggest reason non-technical users cannot self-serve. Cutting it is the wedge.</li>
             <li>Installation and accounts. Both are abandonment points, and both are unnecessary for a client-side tool.</li>
-            <li>Server-side processing and telemetry. Eliminated on purpose — it is the privacy moat.</li>
+            <li>Server-side processing and telemetry. Eliminated on purpose, because it is the privacy moat.</li>
           </ul>
         </div>
         <div class="errc-cell">
@@ -576,7 +587,7 @@ footer a { color: var(--link); }
         <div class="errc-cell">
           <h4>Raise</h4>
           <ul>
-            <li>Trust: verifiable privacy, preview-before-write, never touch originals — far above a category whose norm is "run this script and hope."</li>
+            <li>Trust: verifiable privacy, preview-before-write, never touch originals, all far above a category whose norm is "run this script and hope."</li>
             <li>Correctness: GPS-derived timezone with DST and <code>OffsetTime*</code> tags, above even most paid tools' defaults.</li>
             <li>Honesty about the data: every date labelled with where it came from, upload batches called out, and a guess never written into a field that reads as a fact.</li>
             <li>Plain-language design: name everything for humans.</li>
@@ -586,7 +597,7 @@ footer a { color: var(--link); }
           <h4>Create</h4>
           <ul>
             <li>A browser-based, zero-install, client-side repairer for non-technical users. No prominent free tool occupies this exact box.</li>
-            <li>Runtime-verifiable claims — privacy via network-off, accessibility via live contrast recomputation. "Prove it yourself" properties are a category-level novelty.</li>
+            <li>Runtime-verifiable claims, meaning privacy via network-off and accessibility via live contrast recomputation. "Prove it yourself" properties are a category-level novelty.</li>
             <li>Data provenance as a visible feature. No other tool in this category distinguishes a capture time from Google's record of when the file arrived.</li>
           </ul>
         </div>
@@ -602,7 +613,7 @@ footer a { color: var(--link); }
 
       <div class="callout callout-warning">
         <h4>An honesty check on positioning</h4>
-        <p>The "no free browser-based client-side repairer" claim held up under research, but the free-tool landscape is not static. GPTH is effectively abandoned — last release September 2023, last commit January 2025, many unanswered open issues, broken on the new format — but an active community fork exists that does write EXIF and handle the new sidecar format, and there is a newer free GUI desktop app. Both are still <em>installed desktop tools</em>, not zero-install browser tools, so the positioning stands. But it should be stated as "the only free zero-install browser-based option," not "the only free option." Overclaiming here is exactly the kind of thing an interviewer will fact-check.</p>
+        <p>The "no free browser-based client-side repairer" claim held up under research, but the free-tool landscape is not static. GPTH is effectively abandoned, with its last release in September 2023, its last commit in January 2025, many unanswered open issues and no support for the new format. An active community fork exists that does write EXIF and handle the new sidecar format, and there is a newer free GUI desktop app. Both are still <em>installed desktop tools</em>, not zero-install browser tools, so the positioning stands. But it should be stated as "the only free zero-install browser-based option," not "the only free option." Overclaiming here is exactly the kind of thing an interviewer will fact-check.</p>
       </div>
     </section>
 
@@ -615,9 +626,9 @@ footer a { color: var(--link); }
         <table>
           <thead><tr><th>Framework</th><th>What it did</th><th>Weight</th></tr></thead>
           <tbody>
-            <tr><td><strong>Jobs To Be Done</strong><br>Christensen</td><td>Defined the real job — keep memories in the right time and place — and the forces of progress. Justifies the timezone reversal.</td><td>Load-bearing</td></tr>
+            <tr><td><strong>Jobs To Be Done</strong><br>Christensen</td><td>Defined the real job, which is keeping memories in the right time and place, and the forces of progress. Justifies the timezone reversal.</td><td>Load-bearing</td></tr>
             <tr><td><strong>Kano model</strong><br>Kano et al., 1984</td><td>Classified non-JPEG passthrough (must-be) against the two CSV reports (delighter).</td><td>Load-bearing</td></tr>
-            <tr><td><strong>Four product risks</strong><br>Cagan, <em>Inspired</em></td><td>The spine of Part D — each decision retires value, usability, feasibility or viability.</td><td>Load-bearing</td></tr>
+            <tr><td><strong>Four product risks</strong><br>Cagan, <em>Inspired</em></td><td>The spine of Part 4: each decision retires value, usability, feasibility or viability.</td><td>Load-bearing</td></tr>
             <tr><td><strong>RICE</strong><br>McBride, Intercom</td><td>Forced distribution above features in the roadmap.</td><td>Load-bearing</td></tr>
             <tr><td><strong>Blue Ocean ERRC</strong><br>Kim &amp; Mauborgne, 2005</td><td>Mapped directly onto what to cut, and onto the positioning.</td><td>Load-bearing</td></tr>
             <tr><td><strong>Opportunity Solution Tree</strong><br>Torres · <strong>Double Diamond</strong><br>Design Council</td><td>Framed outcomes over features, and the documented design process.</td><td>Supporting</td></tr>
@@ -627,10 +638,10 @@ footer a { color: var(--link); }
 
       <h3>Frameworks deliberately left out</h3>
       <ul>
-        <li><strong>North Star / HEART / AARRR</strong> — no users and no telemetry, so any metric would be invented and would undercut the document's honesty.</li>
-        <li><strong>MoSCoW</strong> — RICE and ERRC already do the prioritisation and scope work more precisely.</li>
-        <li><strong>Working Backwards / PR-FAQ</strong> — this is a retrospective, not a launch proposal; a fabricated press release would add nothing.</li>
-        <li><strong>Wardley mapping</strong> — the structural-incentive analysis already carries the moat argument without over-engineering it.</li>
+        <li><strong>North Star, HEART and AARRR.</strong> No users and no telemetry, so any metric would be invented and would undercut the document's honesty.</li>
+        <li><strong>MoSCoW.</strong> RICE and ERRC already do the prioritisation and scope work more precisely.</li>
+        <li><strong>Working Backwards and the PR-FAQ.</strong> This is a retrospective, not a launch proposal; a fabricated press release would add nothing.</li>
+        <li><strong>Wardley mapping.</strong> The structural-incentive analysis already carries the moat argument without over-engineering it.</li>
       </ul>
       <p>Naming what I left out, and why, is itself a position.</p>
     </section>
@@ -640,7 +651,7 @@ footer a { color: var(--link); }
 
 <footer>
   <div class="wrap">
-    <p><strong>Save the Dates</strong> — <a href="tool.html">try the tool</a> · <a href="https://github.com/Roanukz/save-the-dates">source on GitHub</a> · MIT licensed</p>
+    <p><strong>Save the Dates</strong> · <a href="tool.html">try the tool</a> · <a href="https://github.com/Roanukz/save-the-dates">source on GitHub</a> · MIT licensed</p>
     <p>Written by Roanuk Zaman. Built with AI assistance; the product decisions are mine. Not affiliated with, endorsed by, or sponsored by Google. Google Photos&trade; and Google Takeout&trade; are trademarks of Google LLC.</p>
   </div>
 </footer>
