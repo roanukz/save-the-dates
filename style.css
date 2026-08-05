@@ -190,6 +190,17 @@ a:hover, .disclosure:hover {
    a single .notice-body still has no margin at all. */
 .notice-body + .notice-body { margin-top: var(--space-8); }
 
+/* The one notice that is a caution rather than a fact: a date that came from
+   Google's record rather than from the photo. It reads as amber because the
+   user genuinely has a decision to make about it. */
+.notice-warning {
+  background: var(--warning-tint);
+  border-color: var(--warning-line);
+  border-left-color: var(--warning-bar);
+}
+.notice-warning .notice-icon { color: var(--warning-text); }
+.notice-warning .notice-label { color: var(--warning-deep); }
+
 
 /* --- Card ---------------------------------------------------------------- */
 
@@ -223,6 +234,14 @@ a:hover, .disclosure:hover {
 .dropzone.is-rejected {
   border: 3px dashed var(--error-500);
   background: var(--error-tint);
+}
+
+/* No folder picker on this device. Solid and quiet rather than dashed: a dashed
+   border is an invitation to drop something, and there is nothing to drop on.
+   Deliberately not the error look - nothing has gone wrong here. */
+.dropzone.is-unavailable {
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-sunken);
 }
 
 .dz-icon {
@@ -417,6 +436,63 @@ a:hover, .disclosure:hover {
   margin-bottom: var(--space-24);
 }
 
+/* The sentence directly under the tiles. Set one step up from body text,
+   because it is the finding: on a normal library it is the sentence that says
+   most of these photos were never broken. It is prose, so it keeps the measure
+   the rest of the page reads at. */
+.scan-summary {
+  font-size: var(--size-20); line-height: var(--lh-20);
+  letter-spacing: var(--ls-20);
+  color: var(--text-body);
+  max-width: var(--measure-20);
+  margin: 0 0 var(--space-24);
+}
+.scan-summary:empty { margin: 0; }
+
+
+/* --- The "only write what is missing" option ----------------------------
+   Sits directly above the download button because it changes what that button
+   does. Laid out as a grid so the explanation lines up under the label text
+   rather than under the box. */
+
+.option-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-12);
+  align-items: start;
+  max-width: var(--measure-16);
+  margin-top: var(--space-24);
+}
+
+.option-row input[type="checkbox"] {
+  width: 18px; height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--fill);
+  flex: none;
+}
+
+.option-row input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.option-row label {
+  font-weight: 600;
+  color: var(--text-heading);
+  cursor: pointer;
+}
+
+/* The plain sentence explaining the difference. Block, so it sits under the
+   label rather than running on from it. */
+.option-help {
+  display: block;
+  font-size: var(--size-13); line-height: var(--lh-13);
+  letter-spacing: var(--ls-13);
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-top: var(--space-4);
+}
+
 .tile {
   border: 1px solid;
   border-radius: var(--radius-lg);
@@ -559,6 +635,32 @@ thead th {
 .col-status { width: 190px; }
 .col-date   { width: 190px; text-align: right; }
 
+/* Narrow on purpose: the answer is "yes" or "no", and the heading is the widest
+   thing that will ever be in the column. */
+.col-yesno  { width: 118px; }
+.col-source { width: 150px; }
+
+/* A date read out of the photo is a fact. A date that only exists in Google's
+   sidecar is a record of when the file arrived. Those two must never look the
+   same, so they differ in weight and colour, not only in wording. */
+.src-photo  { color: var(--success-deep); font-weight: 600; }
+.src-google { color: var(--warning-deep); font-weight: 600; }
+
+/* The upload-batch marker. Several date-less photos sharing a timestamp within
+   seconds is the evidence that the timestamp is an upload, not a capture. */
+.src-batch {
+  display: inline-block;
+  font-size: var(--size-13); line-height: 1.4;
+  font-weight: 600;
+  color: var(--warning-text);
+  background: var(--warning-tint);
+  border: 1px solid var(--warning-line);
+  border-radius: var(--radius);
+  padding: 0 var(--space-4);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
 tbody td {
   padding: var(--space-12);
   border-bottom: 1px solid var(--border-subtle);
@@ -601,6 +703,10 @@ td.col-date { text-align: right; color: var(--text-body); }
   text-decoration: underline dotted;
   text-underline-offset: 2px;
 }
+
+/* Part of a detected upload batch. A slightly stronger left bar than the plain
+   "Google's record" row, because this is the row we have actual evidence about. */
+.row-batch { box-shadow: inset 4px 0 0 var(--warning-bar); }
 
 /* A blank cell reads as a rendering failure to somebody already worried.
    Always print something. */
@@ -725,7 +831,9 @@ td.col-date { text-align: right; color: var(--text-body); }
   td.col-date { text-align: left; }
 
   /* The label travels with its value once the header row is gone. */
-  td.col-date::before {
+  td.col-date::before,
+  td.col-source::before,
+  td.col-yesno::before {
     content: attr(data-label) ": ";
     color: var(--text-muted);
     font-size: var(--size-13);

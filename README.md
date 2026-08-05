@@ -11,21 +11,36 @@ the JPEG's EXIF.
 The teardown is the site's front door, because the link that gets shared is being
 read by people evaluating the thinking, not by people with a broken export to fix.
 It covers the problem, the evidence that it is real and recurring, the decisions I
-committed to and what each one cost, and what I would kill. The tool itself is one
+committed to and what each one cost, and what I would cut. The tool itself is one
 click away from the top of it.
 
 ## The problem
 
 Every photo file has a hidden EXIF section storing when the picture was taken and where
-you were standing. When Google Takeout exports your library it does not leave that
-information inside the photos — it pulls the date and location out and writes them into
-separate `.json` files sitting next to each image.
+you were standing, and separately the file itself has a "date modified" that the operating
+system keeps. Those are different fields, and only one of them is actually broken.
 
-So every app you open the photos in asks the file when it was taken, gets no answer, and
-falls back to the day you downloaded it. Twenty years of birthdays collapse into a single
-day. The information is not lost; it is in the wrong file.
+Unzipping a Takeout export stamps every extracted file with the moment it was extracted.
+That is what you see in Finder and Explorer, it is what a lot of import tools sort by, and
+twenty years of birthdays collapse into a single day. The EXIF inside most of those photos
+is untouched.
 
-This puts it back.
+Measured on a real 65-file export spanning 2013–2024: 35 of 45 JPEGs still had their
+`DateTimeOriginal` embedded, and all 7 HEIC files came out with date *and* GPS intact.
+Google copies metadata into the `.json` sidecars; it does not move it out of the files.
+
+The sidecar is genuinely the only copy for two things: photos that never had EXIF at all
+(screenshots, images shared in from messaging apps, scans), and any date or location you
+edited inside Google Photos, which is never written back into the file.
+
+So this tool puts the right date on every file in your download — JPEG, HEIC, RAW and video
+alike — and only writes inside the JPEGs that are actually missing something.
+
+> **Correction, 5 August 2026.** This README previously said Takeout "pulls the date and
+> location out" of your photos and that apps "get no answer" from the file. That was wrong.
+> Measuring my own export is what corrected it. The tool now reads each file's existing
+> metadata before writing anything, and reports per file whether it needed the tool at all.
+> See the [teardown](https://roanukz.github.io/save-the-dates/) for the full correction.
 
 ## Running it
 

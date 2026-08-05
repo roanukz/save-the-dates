@@ -215,6 +215,151 @@ function readSidecarData(json) {
 }
 
 
+// ---------------------------------------------------------------------------
+// PART 2a - WHERE A DATE CAME FROM, AND WHY THAT MATTERS
+//
+// This is the honest bit, and it is the thing no other tool does.
+//
+// When a photo has no date inside it, Google's sidecar still has a
+// photoTakenTime. It is tempting to treat that as the recovered capture date.
+// It usually is NOT. For photos that were uploaded or shared into the library
+// rather than shot on the device, that timestamp is when Google first saw the
+// photo - the moment it entered the library.
+//
+// The giveaway is clustering. Ten photos taken over ten different years, all
+// uploaded in one go, come out of the sidecar with timestamps a few seconds
+// apart. A real camera roll never looks like that. So we detect the pattern and
+// say so, rather than writing ten identical wrong dates into ten photos and
+// calling it a repair.
+// ---------------------------------------------------------------------------
+
+/**
+ * Where the date for one file comes from.
+ *   'photo'  - it was already inside the file. This is the trustworthy one.
+ *   'google' - only Google's sidecar has it, so it is Google's record of when
+ *              the photo arrived, which may not be when it was taken.
+ *   'none'   - there is no date anywhere.
+ */
+function dateSourceFor(row) {
+  if (row.existing && row.existing.hasDate) return 'photo';
+  // A Live Photo's video half has no metadata of its own, but its still half
+  // does, and they are the same moment. That is a real capture time.
+  if (row.partnerClock) return 'photo';
+  if (row.data && row.data.timestamp) return 'google';
+  return 'none';
+}
+
+
+/**
+ * Pairs up the two halves of a Live Photo.
+ *
+ * An iPhone Live Photo comes out of Takeout as two files sharing one name -
+ * IMG_9661.HEIC and IMG_9661.MP4 - and Google writes a sidecar for the still
+ * half only. Left alone, the video half has no date from anywhere and lands
+ * stamped with the moment you unzipped, which is the exact problem this tool
+ * exists to fix. In a real 65-file export that was ten of the twelve videos.
+ *
+ * So a video borrows the capture time of the still it shares a name with. Same
+ * name, same folder, same moment. Nothing is written inside the video - this
+ * only decides the date that goes on the outside of it.
+ */
+function linkLivePhotoPartners() {
+  const stills = new Map();
+
+  for (const row of scannedRows) {
+    if (row.bucket === 'Video') continue;
+    if (row.existing && row.existing.clock) stills.set(stemKey(row), row);
+  }
+
+  for (const row of scannedRows) {
+    row.partnerClock = null;
+    if (row.bucket !== 'Video') continue;
+
+    const partner = stills.get(stemKey(row));
+    if (partner) {
+      row.partnerClock = partner.existing.clock;
+      row.partnerName = partner.name;
+    }
+  }
+}
+
+
+/**
+ * A file's folder plus its name without the extension, lowercased.
+ * Folder-scoped on purpose: two albums can both hold an "IMG_0001", and pairing
+ * across albums would hand a video somebody else's date.
+ */
+function stemKey(row) {
+  const dot = row.path.lastIndexOf('.');
+  const cut = row.path.lastIndexOf('/');
+  return (dot > cut ? row.path.slice(0, dot) : row.path).toLowerCase();
+}
+
+
+// Sidecar times this close together are one upload batch, not separate moments.
+const CLUSTER_WINDOW_SECONDS = 300;      // five minutes
+const CLUSTER_MIN_FILES = 3;             // below this it is a coincidence, not a pattern
+
+// Filled in by findDateClusters() after every scan.
+let dateClusters = [];
+
+
+/**
+ * Looks for groups of date-less files whose sidecar timestamps sit almost on
+ * top of each other. That pattern means an upload batch, and it is the evidence
+ * that those timestamps are not capture times.
+ */
+function findDateClusters() {
+  dateClusters = [];
+
+  const stamps = scannedRows
+    .filter(row => dateSourceFor(row) === 'google')
+    .map(row => ({ row: row, at: row.data.timestamp }))
+    .sort((a, b) => a.at - b.at);
+
+  let group = [];
+
+  function closeGroup() {
+    if (group.length >= CLUSTER_MIN_FILES) {
+      dateClusters.push({
+        count: group.length,
+        spanSeconds: group[group.length - 1].at - group[0].at,
+        at: group[0].at,
+        rows: group.map(g => g.row)
+      });
+    }
+    group = [];
+  }
+
+  for (const stamp of stamps) {
+    // Measured from the START of the group, not from the previous stamp. Chaining
+    // off the previous one would let a long trickle of photos taken minutes apart
+    // link into one enormous "batch" and produce a claim we cannot stand behind.
+    // A cluster can never span more than the window this way.
+    if (group.length > 0 && stamp.at - group[0].at > CLUSTER_WINDOW_SECONDS) {
+      closeGroup();
+    }
+    group.push(stamp);
+  }
+  closeGroup();
+
+  // Mark the rows themselves, so the table can show which ones are involved.
+  for (const row of scannedRows) row.inCluster = false;
+  for (const cluster of dateClusters) {
+    for (const row of cluster.rows) row.inCluster = true;
+  }
+}
+
+
+/** "16 seconds", "4 minutes" - how tightly one cluster is packed. */
+function describeSpan(seconds) {
+  if (seconds < 1) return 'the same second';
+  if (seconds < 90) return seconds + ' ' + plural(seconds, 'second');
+  const minutes = Math.round(seconds / 60);
+  return minutes + ' ' + plural(minutes, 'minute');
+}
+
+
 /** Returns a usable location object, or null if it is missing or is 0,0. */
 function pickLocation(geo) {
   if (!geo) return null;
@@ -329,6 +474,552 @@ function formatOffset(minutes) {
 
 
 // ---------------------------------------------------------------------------
+// PART 2c - READING THE DATE AND GPS A PHOTO ALREADY HAS
+//
+// This is the part that makes the tool tell the truth about how little it
+// usually needs to do.
+//
+// Google does NOT strip the EXIF out of a photo that already had it. A picture
+// straight off a phone or a camera comes out of Takeout with its
+// DateTimeOriginal and its GPS still inside it. What Takeout resets is the
+// FILE's modified date, because unzipping stamps every file with the moment it
+// was extracted. That is a different field, and it is why every photo reads
+// "today" in Finder and Explorer.
+//
+// The sidecar is genuinely the only home for two things:
+//   - photos that never had EXIF in the first place: screenshots, pictures
+//     saved out of WhatsApp or Messenger, scans, downloads, anything shared
+//     into the library
+//   - any date, time, timezone or location edited INSIDE Google Photos, because
+//     those edits are never written back into the file
+//
+// So we read what each photo already carries BEFORE writing anything, and say
+// so on screen.
+// ---------------------------------------------------------------------------
+
+// How much of the front of a JPEG we read to find its EXIF.
+//
+// A JPEG segment records its own length in a 16-bit number, so the EXIF block
+// can never be larger than 64 KB, and the format puts it at the very front of
+// the file. 128 KB is therefore more than enough to hold all of it, while
+// staying a small read per photo - reading whole files here would make the scan
+// as slow as the download.
+const EXIF_SCAN_BYTES = 128 * 1024;
+
+
+/**
+ * Reads the date and location one file ALREADY carries, without reading the
+ * whole thing.
+ *
+ * Returns { checked, known, hasDate, clock, hasGps }.
+ *   checked - false when this kind of file was never opened at all. Video is
+ *             the case: its dates live in a completely different place and this
+ *             tool does not read them. "Not checked" is not the same as "no".
+ *   known   - false when the file was opened but could not be understood.
+ *   clock   - the capture date as year/month/day/hour/minute/second, or null.
+ *
+ * Reading is NOT the same as support. Nothing here writes to a HEIC, a RAW file
+ * or a video - they are copied through untouched. We read them only so the
+ * screen can say honestly what they already have, and so their file date can be
+ * set correctly on the way into the zip.
+ */
+async function readExistingMetadata(file, bucket) {
+  const notChecked = { checked: false, known: false, hasDate: false, clock: null,
+                       hasGps: false, format: null };
+  const unreadable = { checked: true, known: false, hasDate: false, clock: null,
+                       hasGps: false, format: null };
+
+  // Video keeps its dates in the container, not in EXIF. We do not read those.
+  if (bucket === 'Video' || bucket === 'other') return notChecked;
+
+  try {
+    const head = new Uint8Array(await file.slice(0, EXIF_SCAN_BYTES).arrayBuffer());
+    const binary = bytesToBinaryString(head);
+
+    // The format is decided by LOOKING AT THE BYTES, never by the file's name.
+    // Takeout exports are full of files whose extension does not match their
+    // contents - a real export turned out to have four ".HEIC" files that were
+    // plain JPEGs inside. Trusting the name would have reported them as having
+    // no date, which is exactly the kind of wrong answer this pass is meant to
+    // stop. The answer is kept on the row, because the decision to REWRITE a
+    // file has to rest on what it really is, not on what it is called.
+    const format = sniffFormat(binary);
+    const nothing = { checked: true, known: true, hasDate: false, clock: null,
+                      hasGps: false, format: format };
+    let exifData = null;
+
+    switch (format) {
+      case 'jpeg':
+        exifData = findExifSegment(binary);
+        break;
+      case 'tiff':
+        exifData = binary;      // a RAW file simply IS a TIFF
+        break;
+      case 'isobmff':
+        exifData = await findExifInHeif(file, binary);
+        break;
+      case 'png':
+        exifData = findExifInPng(binary);
+        break;
+    }
+
+    // No metadata block at all. That IS an answer, and it is the interesting
+    // one: this is a screenshot or a shared image, which is why the tool exists.
+    if (!exifData) return nothing;
+
+    let read = readTiffBasics(exifData);
+
+    // The block we want can sit deeper into the file than our first read went.
+    // RAW files are the case: they are enormous and their EXIF can be a long way
+    // in. Go back for more rather than reporting a date that is simply out of
+    // reach as "no date".
+    if (read.truncated) {
+      const more = new Uint8Array(await file.slice(0, DEEP_SCAN_BYTES).arrayBuffer());
+      const deep = bytesToBinaryString(more);
+      const again = sniffFormat(deep) === 'tiff' ? deep : findExifSegment(deep);
+      if (again) read = readTiffBasics(again);
+    }
+
+    if (read.truncated) return unreadable;
+
+    return {
+      checked: true,
+      known: true,
+      hasDate: Boolean(read.clock),
+      clock: read.clock,
+      hasGps: read.hasGps,
+      format: format
+    };
+  } catch (e) {
+    return unreadable;
+  }
+}
+
+
+// How far in we are willing to go on a second attempt, for files whose metadata
+// is not near the front. A RAW file can be 25 MB, so this is a real read - but
+// it only happens for the handful of files that need it.
+const DEEP_SCAN_BYTES = 8 * 1024 * 1024;
+
+
+// The width in bytes of every TIFF value type. Type 11 is FLOAT and type 12 is
+// DOUBLE, and it is those two that RAW files and real HEIC photos carry and that
+// stricter readers choke on.
+const TIFF_TYPE_SIZES = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 6: 1, 7: 1,
+                          8: 2, 9: 4, 10: 8, 11: 4, 12: 8 };
+
+
+/**
+ * Reads the only two things we care about out of a TIFF block: the capture date
+ * and whether there is a usable location.
+ *
+ * WHY NOT USE PIEXIF FOR THIS. piexif refuses an entire file the moment it meets
+ * a tag type it does not recognise, and both RAW files and genuine HEIC photos
+ * carry those routinely - a real export had a DNG and three HEICs that it threw
+ * on, which would have been reported on screen as "no date" when all four had
+ * one. We only need two facts, so a reader that steps over what it does not
+ * understand gets the right answer where a stricter one gives up. piexif is
+ * still the only thing that WRITES anything.
+ *
+ * A TIFF block is a header, then a chain of directories. Each directory is a
+ * count followed by 12-byte entries: tag, type, how many, and then either the
+ * value itself or - if it does not fit in four bytes - where to find it.
+ */
+function readTiffBasics(tiff) {
+  const result = { clock: null, hasGps: false, truncated: false };
+
+  const little = tiff.slice(0, 2) === 'II';
+  if (!little && tiff.slice(0, 2) !== 'MM') return result;
+
+  function u16(at) {
+    if (at + 2 > tiff.length) { result.truncated = true; return 0; }
+    return little
+      ? tiff.charCodeAt(at) | (tiff.charCodeAt(at + 1) << 8)
+      : (tiff.charCodeAt(at) << 8) | tiff.charCodeAt(at + 1);
+  }
+
+  function u32(at) {
+    if (at + 4 > tiff.length) { result.truncated = true; return 0; }
+    const b = [tiff.charCodeAt(at), tiff.charCodeAt(at + 1),
+               tiff.charCodeAt(at + 2), tiff.charCodeAt(at + 3)];
+    if (little) b.reverse();
+    // Multiplied rather than shifted: a shift would turn the top bit negative.
+    return b[0] * 16777216 + (b[1] << 16) + (b[2] << 8) + b[3];
+  }
+
+  /** Reads one directory into a table of tag number -> where its value is. */
+  function readDirectory(at) {
+    const entries = {};
+    if (at <= 0) return entries;
+    if (at + 2 > tiff.length) { result.truncated = true; return entries; }
+
+    const count = u16(at);
+    for (let i = 0; i < count; i++) {
+      const entry = at + 2 + i * 12;
+      if (entry + 12 > tiff.length) { result.truncated = true; break; }
+
+      const tag = u16(entry);
+      const type = u16(entry + 2);
+      const many = u32(entry + 4);
+      const size = (TIFF_TYPE_SIZES[type] || 0) * many;
+
+      // Four bytes or fewer and the value sits in the entry itself. Anything
+      // bigger and those four bytes are a pointer instead.
+      entries[tag] = { type: type, count: many, size: size,
+                       at: size > 4 ? u32(entry + 8) : entry + 8 };
+    }
+    return entries;
+  }
+
+  const ifd0 = readDirectory(u32(4));
+
+  // 0x8769 points at the EXIF directory, 0x8825 at the GPS one.
+  const exifIfd = ifd0[0x8769] ? readDirectory(u32(ifd0[0x8769].at)) : {};
+  const gpsIfd = ifd0[0x8825] ? readDirectory(u32(ifd0[0x8825].at)) : {};
+
+  // 0x9003 is DateTimeOriginal, stored as text with a trailing zero byte.
+  const dateEntry = exifIfd[0x9003];
+  if (dateEntry && dateEntry.type === 2 && dateEntry.count > 1) {
+    if (dateEntry.at + dateEntry.count > tiff.length) result.truncated = true;
+    else {
+      // Take the whole run and strip terminators, rather than assuming the last
+      // byte is a NUL - plenty of cameras write the string without one, and
+      // chopping a character then loses the final digit of the seconds.
+      const text = tiff.slice(dateEntry.at, dateEntry.at + dateEntry.count)
+        .replace(/[\0\s]+$/, '');
+      result.clock = parseExifDateTime(text);
+    }
+  }
+
+  // 0x0002 is latitude and 0x0004 is longitude, each three fractions:
+  // degrees, minutes and seconds.
+  const latitude = degreesFrom(gpsIfd[0x0002]);
+  const longitude = degreesFrom(gpsIfd[0x0004]);
+  result.hasGps = latitude !== 0 || longitude !== 0;
+
+  function degreesFrom(entry) {
+    if (!entry || entry.count < 3 || entry.at + 24 > tiff.length) return 0;
+    let total = 0;
+    for (let i = 0; i < 3; i++) {
+      const top = u32(entry.at + i * 8);
+      const bottom = u32(entry.at + i * 8 + 4);
+      total += (bottom ? top / bottom : 0) / Math.pow(60, i);
+    }
+    return total;
+  }
+
+  return result;
+}
+
+
+/**
+ * What KIND of file is this really, judged by its first few bytes?
+ *
+ * Never by its extension. Takeout hands out files whose name and contents
+ * disagree, and a wrong guess here becomes a wrong answer on screen.
+ */
+function sniffFormat(binary) {
+  if (binary.slice(0, 2) === '\xff\xd8') return 'jpeg';
+  if (binary.slice(0, 8) === '\x89PNG\r\n\x1a\n') return 'png';
+  if (isTiffHeader(binary)) return 'tiff';
+  // HEIC and friends: a box-based file always names its type at byte four.
+  if (binary.slice(4, 8) === 'ftyp') return 'isobmff';
+  return 'unknown';
+}
+
+
+/** Does this run of bytes start with a TIFF header? "II" little endian, "MM" big. */
+function isTiffHeader(binary) {
+  return binary.slice(0, 4) === 'II\x2a\x00' || binary.slice(0, 4) === 'MM\x00\x2a';
+}
+
+
+/**
+ * Finds the EXIF block in a PNG.
+ *
+ * A PNG is a signature followed by a chain of chunks, each one a 4-byte length,
+ * a 4-letter name, the data, and a checksum. The one we want is called "eXIf".
+ * Most PNGs - screenshots especially - do not have one at all.
+ */
+function findExifInPng(binary) {
+  if (binary.slice(0, 8) !== '\x89PNG\r\n\x1a\n') return null;
+
+  let head = 8;
+  while (head + 8 <= binary.length) {
+    const length = readUint32(binary, head);
+    const name = binary.slice(head + 4, head + 8);
+
+    // Only IEND truly ends it. eXIf is allowed after the image data, and IDAT
+    // chunks are stepped over by the arithmetic below without being read.
+    if (name === 'IEND') return null;
+    if (name === 'eXIf') {
+      const end = head + 8 + length;
+      if (end > binary.length) return null;
+      const chunk = binary.slice(head + 8, end);
+      // The chunk is meant to be a bare TIFF block, but some encoders put the
+      // "Exif\0\0" introduction in front of it anyway. Accept either.
+      return chunk.slice(0, 6) === 'Exif\x00\x00' ? chunk.slice(6) : chunk;
+    }
+
+    head += 12 + length;   // length + name + data + checksum
+  }
+
+  return null;
+}
+
+
+/**
+ * Finds the EXIF block in a HEIC photo.
+ *
+ * HEIC is built out of nested "boxes", each one a 4-byte length and a 4-letter
+ * name. Metadata lives in a box called "meta", which holds a list of items
+ * ("iinf") and a table saying where each item's bytes are ("iloc"). We look for
+ * the item called "Exif" and then go and read it.
+ *
+ * The item's bytes can sit anywhere in the file, so if it falls outside the
+ * chunk we already read, we go back and read just that part. Never the whole
+ * photo - a HEIC off a phone can be several megabytes.
+ */
+async function findExifInHeif(file, binary) {
+  const meta = findBox(binary, 0, binary.length, 'meta');
+  if (!meta) return null;
+
+  // "meta" is a full box: four bytes of version and flags before its children.
+  const itemId = findExifItemId(binary, meta.start + 4, meta.end);
+  if (itemId === null) return null;
+
+  const location = findItemLocation(binary, meta.start + 4, meta.end, itemId);
+  if (!location) return null;
+
+  // Read the item's bytes, going back to the file if we do not already have them.
+  let itemBytes;
+  if (location.offset + location.length <= binary.length) {
+    itemBytes = binary.slice(location.offset, location.offset + location.length);
+  } else {
+    const slice = await file.slice(location.offset, location.offset + location.length).arrayBuffer();
+    itemBytes = bytesToBinaryString(new Uint8Array(slice));
+  }
+
+  // The item starts with a few bytes of padding before the TIFF block proper.
+  // Rather than trust the padding length, just find where the TIFF block starts.
+  for (let i = 0; i < Math.min(itemBytes.length, 64); i++) {
+    if (isTiffHeader(itemBytes.slice(i, i + 4))) return itemBytes.slice(i);
+  }
+
+  return null;
+}
+
+
+/** Walks a run of boxes looking for one by name. Returns where its contents are. */
+function findBox(binary, from, to, wanted) {
+  let head = from;
+
+  while (head + 8 <= to) {
+    let size = readUint32(binary, head);
+    const name = binary.slice(head + 4, head + 8);
+    let start = head + 8;
+
+    if (size === 1) {
+      // A 64-bit size follows. We only care about the low half - a metadata box
+      // is never four gigabytes.
+      size = readUint32(binary, head + 12);
+      start = head + 16;
+    } else if (size === 0) {
+      size = to - head;                 // runs to the end
+    }
+
+    if (size < 8) return null;          // nonsense: would loop forever
+
+    const end = Math.min(head + size, to);
+    if (name === wanted) return { start: start, end: end };
+
+    head += size;
+  }
+
+  return null;
+}
+
+
+/** Finds the ID of the item called "Exif" in the item info ("iinf") box. */
+function findExifItemId(binary, from, to) {
+  const iinf = findBox(binary, from, to, 'iinf');
+  if (!iinf) return null;
+
+  const version = binary.charCodeAt(iinf.start);
+  // Entry count is 2 bytes in version 0 and 4 bytes after that.
+  let head = iinf.start + 4 + (version === 0 ? 2 : 4);
+
+  while (head + 8 <= iinf.end) {
+    const size = readUint32(binary, head);
+    if (size < 8) return null;
+
+    if (binary.slice(head + 4, head + 8) === 'infe') {
+      const infeVersion = binary.charCodeAt(head + 8);
+      if (infeVersion >= 2) {
+        // version 2 uses a 2-byte item ID, version 3 uses 4.
+        const idBytes = infeVersion === 2 ? 2 : 4;
+        const id = infeVersion === 2 ? readUint16(binary, head + 12) : readUint32(binary, head + 12);
+        // Then a 2-byte protection index, then the four letters of the type.
+        const type = binary.slice(head + 12 + idBytes + 2, head + 12 + idBytes + 6);
+        if (type === 'Exif') return id;
+      }
+    }
+
+    head += size;
+  }
+
+  return null;
+}
+
+
+/**
+ * Looks up where one item's bytes live, in the item location ("iloc") box.
+ *
+ * This box packs its field widths into half-bytes to save room, which is why
+ * there is so much shifting about below.
+ */
+function findItemLocation(binary, from, to, wantedId) {
+  const iloc = findBox(binary, from, to, 'iloc');
+  if (!iloc) return null;
+
+  const version = binary.charCodeAt(iloc.start);
+  let head = iloc.start + 4;
+
+  const offsetSize = binary.charCodeAt(head) >> 4;
+  const lengthSize = binary.charCodeAt(head) & 0x0f;
+  const baseOffsetSize = binary.charCodeAt(head + 1) >> 4;
+  const indexSize = version >= 1 ? (binary.charCodeAt(head + 1) & 0x0f) : 0;
+  head += 2;
+
+  const itemCount = version < 2 ? readUint16(binary, head) : readUint32(binary, head);
+  head += version < 2 ? 2 : 4;
+
+  for (let i = 0; i < itemCount && head < iloc.end; i++) {
+    const id = version < 2 ? readUint16(binary, head) : readUint32(binary, head);
+    head += version < 2 ? 2 : 4;
+
+    if (version >= 1) head += 2;        // reserved bits and construction method
+    head += 2;                          // data reference index
+
+    const baseOffset = readSized(binary, head, baseOffsetSize);
+    head += baseOffsetSize;
+
+    const extentCount = readUint16(binary, head);
+    head += 2;
+
+    // If all three widths are zero the inner loop cannot advance, and a
+    // malformed box would spin for as many iterations as its count claims.
+    if (indexSize + offsetSize + lengthSize === 0) return null;
+
+    for (let e = 0; e < extentCount && head < iloc.end; e++) {
+      head += indexSize;
+      const offset = readSized(binary, head, offsetSize);
+      head += offsetSize;
+      const length = readSized(binary, head, lengthSize);
+      head += lengthSize;
+
+      // The first extent is the one we want; EXIF is never split up.
+      if (id === wantedId && e === 0 && length > 0) {
+        return { offset: baseOffset + offset, length: length };
+      }
+    }
+  }
+
+  return null;
+}
+
+
+/** Reads a big-endian whole number of the given width, in bytes. */
+function readSized(binary, at, width) {
+  let value = 0;
+  for (let i = 0; i < width; i++) value = value * 256 + binary.charCodeAt(at + i);
+  return value;
+}
+
+/** Reads a 4-byte big-endian number. */
+function readUint32(binary, at) { return readSized(binary, at, 4); }
+
+/** Reads a 2-byte big-endian number. */
+function readUint16(binary, at) { return readSized(binary, at, 2); }
+
+
+/**
+ * Finds the EXIF block at the front of a JPEG and hands back the raw TIFF block
+ * inside it, with the "Exif\0\0" introduction stripped off.
+ *
+ * A JPEG is a chain of segments. Each one starts with the byte 0xFF, then a
+ * marker byte saying what it is, then its own length. We walk that chain until
+ * we find the EXIF one, and stop as soon as the compressed image data starts,
+ * because nothing past that point is metadata.
+ *
+ * Returns null when the photo has no EXIF, when it is not a JPEG, or when the
+ * chain runs off the end of the slice we read. That last case means "we could
+ * not tell", which is better than guessing.
+ */
+function findExifSegment(binary) {
+  if (binary.slice(0, 2) !== '\xff\xd8') return null;     // not a JPEG at all
+
+  let head = 2;
+
+  while (head + 4 <= binary.length) {
+    // A segment is allowed to be padded with extra 0xFF bytes in front of its
+    // marker. Step over any of those before reading the marker itself.
+    while (head + 1 < binary.length &&
+           binary.charCodeAt(head) === 0xff &&
+           binary.charCodeAt(head + 1) === 0xff) head++;
+
+    if (binary.charCodeAt(head) !== 0xff) return null;    // the chain is broken
+
+    const marker = binary.charCodeAt(head + 1);
+
+    // 0xDA starts the compressed image data and 0xD9 ends the file. Either way
+    // there is no metadata left to find.
+    if (marker === 0xda || marker === 0xd9) return null;
+
+    const length = (binary.charCodeAt(head + 2) << 8) | binary.charCodeAt(head + 3);
+    if (length < 2) return null;                          // nonsense: would loop forever
+
+    const end = head + 2 + length;
+
+    // APP1 carrying the marker "Exif\0\0" is the one we want. The TIFF block
+    // starts immediately after those six bytes.
+    if (marker === 0xe1 && binary.slice(head + 4, head + 10) === 'Exif\x00\x00') {
+      // Only trust it if the whole segment is inside what we actually read.
+      return end <= binary.length ? binary.slice(head + 10, end) : null;
+    }
+
+    head = end;
+  }
+
+  return null;
+}
+
+
+/**
+ * Reads an EXIF date string - "2019:07:14 15:23:05" - into its parts.
+ *
+ * Returns null for anything missing or unusable. Plenty of photos in the wild
+ * carry a placeholder of all zeros or all spaces, and that means "no date", not
+ * "the year 0".
+ */
+function parseExifDateTime(text) {
+  if (!text) return null;
+
+  const match = String(text).match(/^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+  if (!match) return null;
+
+  const clock = {
+    year: Number(match[1]), month: Number(match[2]), day: Number(match[3]),
+    hour: Number(match[4]), minute: Number(match[5]), second: Number(match[6])
+  };
+
+  if (clock.year === 0 || clock.month === 0 || clock.day === 0) return null;
+
+  return clock;
+}
+
+
+// ---------------------------------------------------------------------------
 // PART 3 - THE SCREEN
 //
 // Three screens, one at a time: choosing a folder, waiting, and the answer.
@@ -346,6 +1037,8 @@ const dzDragName = document.getElementById('dzDragName');
 const dzRejectHeadline = document.getElementById('dzRejectHeadline');
 const dzRejectBody = document.getElementById('dzRejectBody');
 const dzRejectName = document.getElementById('dzRejectName');
+const dzNoPicker = document.getElementById('dzNoPicker');
+const folderNotice = document.getElementById('folderNotice');
 const chooseButton = document.getElementById('chooseButton');
 const tryAgainButton = document.getElementById('tryAgainButton');
 
@@ -362,14 +1055,18 @@ const workBar = document.getElementById('workBar');
 const tickerFile = document.getElementById('tickerFile');
 const workElapsed = document.getElementById('workElapsed');
 const tallyBoxes = {
-  fixed: document.getElementById('tallyFixed'),
-  cannot: document.getElementById('tallyCannot'),
-  noMeta: document.getElementById('tallyNoMeta')
+  haveDate: document.getElementById('tallyHaveDate'),
+  needDate: document.getElementById('tallyNeedDate'),
+  noDate: document.getElementById('tallyNoDate')
 };
 const stopButton = document.getElementById('stopButton');
 
 // --- Screen 3: the answer
 const tilesBox = document.getElementById('tiles');
+const scanSummary = document.getElementById('scanSummary');
+const clusterNotice = document.getElementById('clusterNotice');
+const onlyMissingBox = document.getElementById('onlyMissing');
+const googleDatesBox = document.getElementById('googleDates');
 const resultsNotices = document.getElementById('resultsNotices');
 const downloadButton = document.getElementById('downloadButton');
 const downloadLabel = document.getElementById('downloadLabel');
@@ -394,9 +1091,7 @@ let scannedRows = [];
 // A count of every file the picker handed us, split up by type.
 let fileInventory = null;
 
-// The names of the files this tool cannot fix, and of the JSON sidecars. Only
-// the names are kept, never the files, so this costs almost no memory.
-let unsupportedFiles = [];
+// The paths of the JSON sidecars. Only the names are kept, never the files.
 let sidecarPaths = [];
 
 // What the last download run actually did. Null until a run finishes.
@@ -405,8 +1100,12 @@ let lastRunSummary = null;
 // Set by the Stop button. Both long loops check it between files.
 let stopRequested = false;
 
+// Set when the READING loop was cut short, so the results screen can admit that
+// the numbers below describe only part of the folder.
+let scanStopped = false;
+
 // The three running tallies shown during the wait.
-let tally = { fixed: 0, cannot: 0, noMeta: 0 };
+let tally = { haveDate: 0, needDate: 0, noDate: 0 };
 
 // The table is closed until asked for. That default IS the design: someone
 // who never opens it has been served properly.
@@ -436,7 +1135,33 @@ stopButton.addEventListener('click', function () {
   stopButton.textContent = 'Stopping...';
 });
 
-downloadButton.addEventListener('click', function () { fixPhotos(); });
+// Ticking or clearing the box changes what the download will do, so the summary
+// sentence and the table have to be redrawn to match. Nothing is written here.
+// Either box changes what the download will do, so the summary, the tiles and
+// the table are redrawn to match. Nothing is written here.
+function optionChanged() {
+  drawTiles();
+  drawScanSummary();
+  drawChips();
+  if (tableExpanded) drawTable();
+}
+
+onlyMissingBox.addEventListener('change', optionChanged);
+googleDatesBox.addEventListener('change', optionChanged);
+
+// Anything that escapes fixPhotos would otherwise leave the page stuck on the
+// waiting screen forever, with no way back and no explanation.
+downloadButton.addEventListener('click', function () {
+  fixPhotos().catch(function (e) {
+    endWork();
+    downloadButton.disabled = false;
+    downloadButton.removeAttribute('aria-busy');
+    progressLine.textContent = 'Something went wrong building the download: ' +
+      (e && e.message ? e.message : String(e)) +
+      '. Your own files were not touched. Press Start over to try again.';
+    showPhase('done');
+  });
+});
 previewReportButton.addEventListener('click', function () { downloadReport('preview'); });
 resultsReportButton.addEventListener('click', function () { downloadReport('results'); });
 startOverButton.addEventListener('click', function () { startOver(); });
@@ -558,12 +1283,73 @@ async function walkEntry(entry, prefix, out) {
 }
 
 
+// --- When this browser cannot pick a folder at all -------------------------
+//
+// Picking a whole folder is something phone browsers simply cannot do. What
+// makes this awkward to detect is that iOS Safari and Chrome for Android both
+// LIST the webkitdirectory property while still only ever offering single
+// files, so asking whether the property exists gets a yes from browsers where
+// the picker does not work. The property test is still worth doing - Firefox on
+// Android, among others, is honest about it - but it cannot be the whole test.
+//
+// So there are two questions. Does the property exist, and is the only pointer
+// on this device a finger? The second is a question about input hardware, asked
+// through the standard media queries. The user agent string is never read.
+//
+// Getting this wrong in one direction shows an explanation to somebody who
+// could have used the tool. Getting it wrong in the other direction lets
+// somebody start something that cannot possibly finish, on their photo library.
+// The explanation is by far the better of those two failures.
+
+/** Can a folder actually be chosen in this browser? */
+function folderPickerWorksHere() {
+  if (!('webkitdirectory' in document.createElement('input'))) return false;
+
+  // Coarse pointer, no hover, and real touch points: a phone or a tablet.
+  const touchOnly =
+    window.matchMedia('(pointer: coarse)').matches &&
+    window.matchMedia('(hover: none)').matches &&
+    (navigator.maxTouchPoints || 0) > 0;
+
+  return !touchOnly;
+}
+
+
+// False once we have decided there is no folder picker here. Everything that
+// would draw a control into the drop zone checks this first, so nothing
+// clickable can come back afterwards.
+let folderPickerAvailable = true;
+
+
+/**
+ * Replaces the drop zone with a plain explanation when a folder cannot be
+ * chosen. Nothing that could be pressed is left behind - a disabled button
+ * would just be an invitation to keep trying.
+ */
+function checkFolderPickerSupport() {
+  if (folderPickerWorksHere()) return;
+
+  folderPickerAvailable = false;
+
+  dzIdle.hidden = true;
+  dzDragover.hidden = true;
+  dzRejected.hidden = true;
+  dzNoPicker.hidden = false;
+  dropZone.classList.add('is-unavailable');
+
+  // The notice underneath explains how to choose a folder, which is advice for
+  // something that cannot be done here.
+  if (folderNotice) folderNotice.hidden = true;
+}
+
+
 // Which look the drop zone is currently wearing, so we never rewrite the DOM
 // to the state it is already in.
 let dropState = 'idle';
 
 /** Switches the drop zone between its three looks. */
 function showDropState(state) {
+  if (!folderPickerAvailable) return;   // there is no drop zone to change
   if (state === dropState) return;
   dropState = state;
   dropZone.className = 'dropzone' +
@@ -595,9 +1381,11 @@ function showPhase(name) {
 function startOver() {
   scannedRows = [];
   fileInventory = null;
-  unsupportedFiles = [];
+  dateClusters = [];
   sidecarPaths = [];
   lastRunSummary = null;
+  scanStopped = false;
+  downloadButton.removeAttribute('aria-busy');
   tableExpanded = false;
   currentFilter = 'all';
   currentPage = 1;
@@ -605,6 +1393,8 @@ function startOver() {
   toggleTable.setAttribute('aria-expanded', 'false');
   progressLine.textContent = '';
   skippedBox.innerHTML = '';
+  scanSummary.textContent = '';
+  clusterNotice.innerHTML = '';
   picker.value = '';
   showDropState('idle');
   showPhase('idle');
@@ -678,12 +1468,15 @@ function reportWork(done, total, filename) {
 // most one visual tick per tile per 400ms, because without it a fast machine
 // just flickers.
 const TICK_THROTTLE_MS = 400;
-const lastTickAt = { fixed: 0, cannot: 0, noMeta: 0 };
+const lastTickAt = { haveDate: 0, needDate: 0, noDate: 0 };
 
 /** Sets one tally, and ticks it if it has been long enough since the last one. */
 function setTally(name, value) {
   const box = tallyBoxes[name];
   if (!box) return;
+  // A renamed key would otherwise quietly print "NaN" across the whole scan,
+  // which reads as a crash to somebody watching their photo library go through.
+  if (!Number.isFinite(value)) return;
   const changed = box.textContent !== formatCount(value);
   box.textContent = formatCount(value);
 
@@ -734,70 +1527,73 @@ async function handleFolder(files) {
   currentPage = 1;
   progressLine.textContent = '';
   skippedBox.innerHTML = '';
-  tally = { fixed: 0, cannot: 0, noMeta: 0 };
+  dateClusters = [];
+  clusterNotice.innerHTML = '';
+  tally = { haveDate: 0, needDate: 0, noDate: 0 };
 
   beginWork('Reading your photos');
-  setTally('fixed', 0); setTally('cannot', 0); setTally('noMeta', 0);
+  setTally('haveDate', 0); setTally('needDate', 0); setTally('noDate', 0);
   reportWork(0, files.length, '');
   await pause();
 
-  // Sort every file into photos or sidecars, keeping track of which folder it
-  // is in. Matching is done folder by folder, because Takeout albums often
-  // reuse the same filenames.
-  const photos = [];
+  // Sort every file into media or sidecars, keeping track of which folder it is
+  // in. Matching is done folder by folder, because Takeout albums often reuse
+  // the same filenames.
+  //
+  // EVERY media file gets a row now, not just the JPEGs. A HEIC or a video is
+  // never written to, but it still belongs in the download and it still needs
+  // its file date put right, which is the thing most people are actually here
+  // for.
+  const media = [];
   const sidecarsByFolder = new Map();
 
   // Every single file gets counted, whatever it is, so nothing is quietly ignored.
-  const counts = { JPEG: 0, HEIC: 0, PNG: 0, GIF: 0, WEBP: 0, MP4: 0, MOV: 0, JSON: 0, other: 0 };
-  unsupportedFiles = [];
+  const counts = { JPEG: 0, HEIC: 0, PNG: 0, GIF: 0, WEBP: 0, RAW: 0, Video: 0, JSON: 0, other: 0 };
   sidecarPaths = [];
 
   for (const file of files) {
     const path = file.webkitRelativePath || file.name;
     const folder = folderOf(path);
-    const lowerName = file.name.toLowerCase();
-
     const bucket = bucketFor(file.name);
     counts[bucket]++;
+
     if (bucket === 'JSON') {
       sidecarPaths.push(path);
-    } else if (bucket !== 'JPEG') {
-      unsupportedFiles.push({ path: path, type: bucket });
-    }
-
-    if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg')) {
-      photos.push({ file, folder, path });
-    } else if (lowerName.endsWith('.json')) {
       if (!sidecarsByFolder.has(folder)) sidecarsByFolder.set(folder, []);
       sidecarsByFolder.get(folder).push(file);
+    } else {
+      media.push({ file, folder, path, bucket });
     }
   }
 
-  fileInventory = { total: files.length, counts: counts };
+  fileInventory = { total: files.length, counts: counts, mediaCount: media.length };
 
-  // Everything that is not a JPEG is known to be unfixable straight away.
-  tally.cannot = unsupportedFiles.length;
-  setTally('cannot', tally.cannot);
-
-  // Work out the match for every photo, then read the JSON for the ones that
-  // matched. This is the long part on a real library.
+  // Work out the match for every file, read the JSON for the ones that matched,
+  // and read whatever the file itself already carries. This is the long part on
+  // a real library.
   const rows = [];
 
-  for (let i = 0; i < photos.length; i++) {
-    if (stopRequested) break;
+  scanStopped = false;
 
-    const photo = photos[i];
-    const folderSidecars = sidecarsByFolder.get(photo.folder) || [];
-    const sidecarNames = folderSidecars.map(f => f.name);
+  for (let i = 0; i < media.length; i++) {
+    // Stopping mid-scan leaves a PARTIAL picture of the folder, and every number
+    // on the results screen would otherwise describe it as if it were the whole
+    // thing. Record it so the summary can say so.
+    if (stopRequested) { scanStopped = { done: rows.length, total: media.length }; break; }
 
-    const matchName = findSidecarFor(photo.file.name, sidecarNames);
+    const item = media[i];
+    const folderSidecars = sidecarsByFolder.get(item.folder) || [];
+    const matchName = findSidecarFor(item.file.name, folderSidecars.map(f => f.name));
 
     const row = {
-      name: photo.file.name,
-      path: photo.path,
-      file: photo.file,          // kept so the download button can read it later
+      name: item.file.name,
+      path: item.path,
+      file: item.file,           // kept so the download button can read it later
+      bucket: item.bucket,
+      isJpeg: item.bucket === 'JPEG',
       sidecarName: matchName,
       data: null,
+      existing: null,            // the date and GPS the file already carries
       error: null
     };
 
@@ -811,23 +1607,32 @@ async function handleFolder(files) {
       }
     }
 
+    // Read what the file ALREADY has, before anything is written, so the table
+    // can say plainly which files genuinely need this tool and which are fine.
+    row.existing = await readExistingMetadata(item.file, item.bucket);
+
     rows.push(row);
 
     // Keep the tallies honest as we go.
-    if (isFixable(row)) tally.fixed++; else tally.noMeta++;
-    setTally('fixed', tally.fixed);
-    setTally('noMeta', tally.noMeta);
+    if (row.existing && row.existing.hasDate) tally.haveDate++;
+    else if (row.data && row.data.timestamp) tally.needDate++;
+    else tally.noDate++;
+    setTally('haveDate', tally.haveDate);
+    setTally('needDate', tally.needDate);
+    setTally('noDate', tally.noDate);
 
     // Hand control back to the browser often enough that the page keeps
     // redrawing, but not so often that the scan crawls.
-    if (i % 25 === 0 || i === photos.length - 1) {
-      reportWork(i + 1, photos.length, photo.path);
+    if (i % 25 === 0 || i === media.length - 1) {
+      reportWork(i + 1, media.length, item.path);
       await pause();
     }
   }
 
   endWork();
   scannedRows = rows;
+  linkLivePhotoPartners();
+  findDateClusters();
   showResults();
 }
 
@@ -837,13 +1642,17 @@ async function handleFolder(files) {
 /** Draws the results screen. */
 function showResults() {
   drawTiles();
+  drawScanSummary();
   drawResultsNotices();
 
-  const fixable = scannedRows.filter(isFixable);
-  downloadLabel.textContent = fixable.length === 1
-    ? 'Download 1 fixed photo'
-    : 'Download ' + formatCount(fixable.length) + ' fixed photos';
-  downloadButton.disabled = fixable.length === 0;
+  // Every media file goes into the download, correctly dated, whether or not we
+  // write anything inside it. The label says how many files, not how many were
+  // "fixed", because on a normal library those are very different numbers.
+  const count = scannedRows.length;
+  downloadLabel.textContent = count === 1
+    ? 'Download 1 file, correctly dated'
+    : 'Download ' + formatCount(count) + ' files, correctly dated';
+  downloadButton.disabled = count === 0;
   downloadButton.removeAttribute('aria-busy');
 
   // The preview report is worth having even when nothing can be fixed - that is
@@ -855,7 +1664,8 @@ function showResults() {
   // that a record will exist afterwards.
   resultsReportButton.disabled = !lastRunSummary;
 
-  toggleTableLabel.textContent = 'Show all ' + formatCount(allTableRows().length) + ' files';
+  toggleTableLabel.textContent = (tableExpanded ? 'Hide all ' : 'Show all ') +
+    formatCount(allTableRows().length) + ' files';
   drawChips();
   if (tableExpanded) drawTable();
 
@@ -863,28 +1673,48 @@ function showResults() {
 }
 
 
-/** The three tiles. Every number here is also written out in words. */
+/**
+ * The three tiles.
+ *
+ * These used to be "Fixed / Can't be fixed / No metadata", which was built on
+ * the belief that Takeout strips your dates out. It does not. So the three
+ * numbers worth showing are now: how many files come out correctly dated (all
+ * of them), how many actually need anything written inside them (usually very
+ * few), and how many have no date to be found anywhere (the honest failure).
+ */
 function drawTiles() {
-  const total = tally.fixed + tally.cannot + tally.noMeta;
+  const total = scannedRows.length;
   const pct = n => (total > 0 ? Math.round((n / total) * 100) : 0);
 
   // Nothing is written until the download button is pressed, so before that the
-  // first tile must not claim these photos are already done. Saying "Fixed" over
-  // a folder nobody has touched yet is how somebody ends up believing their
-  // photos were processed when they were not.
+  // tiles must not claim anything has happened yet.
   const written = Boolean(lastRunSummary);
+
+  const noDate = scannedRows.filter(row => dateSourceFor(row) === 'none').length;
+
+  // After a run these must come from what the run ACTUALLY did, not from
+  // re-deriving the plan - otherwise the past-tense labels claim work that a
+  // failure or a Stop meant never happened.
+  const toWrite = written
+    ? lastRunSummary.fixedCount
+    : scannedRows.filter(needsWriting).length;
+  const dated = written
+    ? lastRunSummary.fixedCount + lastRunSummary.unchangedCount
+    : total - noDate;
 
   const tiles = [
     { kind: 'success', icon: 'success',
-      label: written ? 'Fixed' : 'Ready to fix',
-      count: tally.fixed,
+      label: written ? 'Correctly dated' : 'Will be dated correctly',
+      count: dated,
       desc: written
-        ? 'dates written back into the photo'
-        : 'dates ready to write back - press Download below' },
-    { kind: 'notice', icon: 'notice', label: "Can't be fixed", count: tally.cannot,
-      desc: describeUnfixable() },
-    { kind: 'warning', icon: 'warning', label: 'No metadata', count: tally.noMeta,
-      desc: 'no usable JSON file was found beside them' }
+        ? 'files in your download carrying their real date'
+        : 'files that will come out of the zip with the right date on them' },
+    { kind: 'notice', icon: 'notice',
+      label: written ? 'Written into' : 'Need writing into',
+      count: toWrite,
+      desc: describeWhatNeedsWriting(toWrite) },
+    { kind: 'warning', icon: 'warning', label: 'No date anywhere', count: noDate,
+      desc: 'nothing inside the file and nothing in a sidecar either' }
   ];
 
   tilesBox.innerHTML = tiles.map(function (t) {
@@ -899,18 +1729,189 @@ function drawTiles() {
 }
 
 
-/** Names the biggest kind of file we had to leave alone, e.g. "HEIC files". */
-function describeUnfixable() {
-  if (!fileInventory || tally.cannot === 0) return 'nothing here needed leaving out';
-
-  const counts = fileInventory.counts;
-  let biggest = null;
-  for (const label of CANNOT_FIX_BUCKETS) {
-    if (counts[label] > 0 && (!biggest || counts[label] > counts[biggest])) biggest = label;
-  }
-  const lead = biggest && biggest !== 'other' ? biggest + ' and other files' : 'files this tool cannot read';
-  return lead + ' - left exactly as they are';
+/** The middle tile's line. Says nothing needs doing when nothing does. */
+function describeWhatNeedsWriting(count) {
+  if (count === 0) return 'nothing here needs its metadata changed';
+  return 'JPEGs missing a date or a location, filled in from the sidecar';
 }
+
+
+/**
+ * Counts what the scan actually found. This answers the only question worth
+ * asking before pressing Download: how much of this needs doing at all?
+ *
+ * On a normal phone-and-camera library the answer is "almost none of it", and
+ * saying so plainly is more useful than a big number that implies otherwise.
+ */
+function countWhatNeedsDoing() {
+  const counts = {
+    jpegs: 0,
+    jpegsWithDate: 0,
+    jpegsMissingDate: 0,
+    gpsOnlyInSidecar: 0,
+    unreadable: 0,
+    otherByBucket: {},
+    otherTotal: 0
+  };
+
+  for (const row of scannedRows) {
+    const existing = row.existing;
+
+    if (!row.isJpeg) {
+      counts.otherByBucket[row.bucket] = (counts.otherByBucket[row.bucket] || 0) + 1;
+      counts.otherTotal++;
+      continue;
+    }
+
+    counts.jpegs++;
+    if (existing && existing.checked && !existing.known) counts.unreadable++;
+
+    if (existing && existing.hasDate) counts.jpegsWithDate++;
+    else counts.jpegsMissingDate++;
+
+    // A location that is in the sidecar but not in the photo. This is the other
+    // thing only Google's JSON knows: locations added or corrected inside
+    // Google Photos are never written back into the file.
+    const sidecarHasGps = Boolean(row.data && row.data.latitude !== null);
+    if (sidecarHasGps && !(existing && existing.hasGps)) counts.gpsOnlyInSidecar++;
+  }
+
+  return counts;
+}
+
+
+/** "7 HEIC, 1 RAW and 12 video" - the files we never write into, named. */
+function describeReadOnlyFiles(counts) {
+  const words = { HEIC: 'HEIC', RAW: 'RAW', Video: 'video', PNG: 'PNG',
+                  GIF: 'GIF', WEBP: 'WebP', other: 'other' };
+  const parts = [];
+
+  for (const bucket of READ_ONLY_BUCKETS) {
+    const n = counts.otherByBucket[bucket];
+    if (n > 0) parts.push(formatCount(n) + ' ' + words[bucket]);
+  }
+
+  return joinWithAnd(parts);
+}
+
+
+/**
+ * The summary sentence above the table, and the most important thing on this
+ * screen. It is what stops somebody believing 847 photos were broken when 812
+ * of them were always fine.
+ *
+ * It is redrawn when the "only write what is missing" box is toggled, because
+ * that box changes what happens to the photos that are already fine.
+ */
+function drawScanSummary() {
+  if (!scanSummary) return;
+
+  if (scannedRows.length === 0) {
+    scanSummary.textContent = '';
+    return;
+  }
+
+  const n = countWhatNeedsDoing();
+  const onlyMissing = onlyMissingBox.checked;
+  const sentences = [];
+
+  // Said first, because it changes what every number after it means.
+  if (scanStopped) {
+    sentences.push('Stopped after reading ' + formatCount(scanStopped.done) + ' of ' +
+      formatCount(scanStopped.total) + ' files, so everything below describes only ' +
+      'that part of the folder. Start over to read the rest.');
+  }
+
+  if (n.jpegs > 0) {
+    sentences.push(formatCount(n.jpegs) + ' ' + plural(n.jpegs, 'JPEG') + '.');
+
+    // The headline fact: most photos came out of Takeout with their date intact.
+    if (n.jpegsWithDate > 0) {
+      sentences.push(formatCount(n.jpegsWithDate) + ' already ' + verbHave(n.jpegsWithDate) +
+        ' their date' +
+        (onlyMissing
+          ? ' and will not be changed.'
+          : ", and Google's sidecar date will be written over it."));
+    }
+
+    if (n.jpegsMissingDate > 0) {
+      sentences.push(formatCount(n.jpegsMissingDate) + ' ' + verbBe(n.jpegsMissingDate) +
+        ' missing one.');
+    }
+  }
+
+  // The files we never write into. They are still in the download and still get
+  // their file date put right, which is the point worth making here.
+  if (n.otherTotal > 0) {
+    sentences.push(describeReadOnlyFiles(n) + ' ' + plural(n.otherTotal, 'file') +
+      ' will get correct file dates but ' +
+      (n.otherTotal === 1 ? "won't" : "won't") + ' be modified.');
+  }
+
+  if (n.gpsOnlyInSidecar > 0) {
+    sentences.push(formatCount(n.gpsOnlyInSidecar) + ' ' + verbHave(n.gpsOnlyInSidecar) +
+      ' a location Google stored separately.');
+  }
+
+  if (n.unreadable > 0) {
+    sentences.push(formatCount(n.unreadable) + " couldn't be read, so " +
+      (n.unreadable === 1 ? 'it is' : 'they are') + ' treated as missing.');
+  }
+
+  scanSummary.textContent = sentences.join(' ');
+  drawClusterNotice();
+}
+
+
+/**
+ * The upload-batch warning. This is the most defensible thing the tool says, so
+ * it is a notice on the screen, not a footnote.
+ */
+function drawClusterNotice() {
+  if (!clusterNotice) return;
+
+  const googleDated = scannedRows.filter(row => dateSourceFor(row) === 'google').length;
+
+  if (googleDated === 0) {
+    clusterNotice.innerHTML = '';
+    return;
+  }
+
+  // "No date inside it" is only true for the files we actually opened. A video's
+  // dates live in its container and this tool does not read those, so the wording
+  // has to cover both without claiming something it did not check.
+  let body = 'For ' + formatCount(googleDated) + ' ' + plural(googleDated, 'file') +
+    ", the only date available is Google's record of when the photo entered your " +
+    'library, which may not be when it was taken.';
+
+  // The clustering is the evidence. Where it exists, say it plainly.
+  if (dateClusters.length > 0) {
+    const biggest = dateClusters.reduce((a, b) => (b.count > a.count ? b : a));
+    body += ' ' + formatCount(biggest.count) + ' of them share timestamps spanning ' +
+      describeSpan(biggest.spanSeconds) + ' in total' +
+      (dateClusters.length > 1 ? ', in one of ' + dateClusters.length + ' such groups' : '') +
+      '. Photos taken at different times do not arrive a few seconds apart, so that is ' +
+      'one upload, not ' + formatCount(biggest.count) + ' separate moments.';
+  }
+
+  body += googleDatesBox.checked
+    ? ' You have chosen to write these dates in anyway.'
+    : ' These dates are NOT being written into the photos. The files still get the date ' +
+      'on the outside, so they sort sensibly, and what is inside them is left honest.';
+
+  clusterNotice.innerHTML =
+    '<div class="notice notice-warning">' + iconSvg('warning', 'notice-icon') +
+    '<div><p class="notice-label">Where ' + formatCount(googleDated) +
+    ' of these dates came from</p>' +
+    '<p class="notice-body">' + escapeHtml(body) + '</p></div></div>';
+}
+
+
+/** "1 photo has" but "12 photos have". */
+function verbHave(count) { return count === 1 ? 'has' : 'have'; }
+
+/** "1 photo is" but "12 photos are". */
+function verbBe(count) { return count === 1 ? 'is' : 'are'; }
 
 
 /**
@@ -919,26 +1920,30 @@ function describeUnfixable() {
  * "left exactly as they are" is the half that takes the fear away.
  */
 function drawResultsNotices() {
-  if (tally.cannot === 0) { resultsNotices.innerHTML = ''; return; }
-
+  const n = countWhatNeedsDoing();
   const counts = fileInventory ? fileInventory.counts : {};
+
+  if (n.otherTotal === 0 && !counts.JSON) { resultsNotices.innerHTML = ''; return; }
+
   const parts = [];
-  for (const label of CANNOT_FIX_BUCKETS) {
-    if (counts[label] > 0) parts.push(formatCount(counts[label]) + ' ' + label);
+
+  if (n.otherTotal > 0) {
+    parts.push(describeReadOnlyFiles(n) + ' ' + plural(n.otherTotal, 'file') +
+      ' are in your download with the right date on them, but nothing inside them is ' +
+      'touched. Measuring a real export showed HEIC, RAW and video come out of Takeout ' +
+      'with their dates and locations already intact, so there is nothing there to repair.');
   }
 
-  const body = joinWithAnd(parts) + ' ' + plural(tally.cannot, 'file') +
-    " can't be fixed by this tool. They are left exactly as they are, and they are " +
-    'not included in the download.' +
-    (counts.JSON > 0
-      ? ' The ' + formatCount(counts.JSON) + ' JSON metadata ' + plural(counts.JSON, 'file') +
-        ' are where the dates come from; they are not photos, so they are not in the download either.'
-      : '');
+  if (counts.JSON > 0) {
+    parts.push('The ' + formatCount(counts.JSON) + ' JSON metadata ' + plural(counts.JSON, 'file') +
+      ' are read for what your photos are missing. They are not photos, so they are not ' +
+      'in the download.');
+  }
 
   resultsNotices.innerHTML =
     '<div class="notice">' + iconSvg('notice', 'notice-icon') +
     '<div><p class="notice-label">Good to know</p>' +
-    '<p class="notice-body">' + escapeHtml(body) + '</p></div></div>';
+    '<p class="notice-body">' + escapeHtml(parts.join(' ')) + '</p></div></div>';
 }
 
 
@@ -946,35 +1951,34 @@ function drawResultsNotices() {
 
 /**
  * Every file, in one list, with the status it ended up with.
- *   fixed      - a sidecar was found and had something usable in it
- *   noMetadata - a sidecar was found but held no date and no location
- *   unmatched  - no sidecar was found at all
- *   cannotFix  - not a JPEG, so this tool never had a way in
+ *   ownDate    - the date was already inside the file. Nothing needed doing.
+ *   googleDate - the only date is Google's record of when it arrived.
+ *   willWrite  - we are filling something in from the sidecar.
+ *   noDate     - no date inside the file and none in a sidecar either.
  */
 function allTableRows() {
-  const out = [];
+  return scannedRows.map(function (row) {
+    const source = dateSourceFor(row);
 
-  for (const row of scannedRows) {
+    // "Filling in" wins over the others, so the chip counts and the tile above
+    // them can never disagree about how many files are being written to. Where
+    // the date came from is still shown, in its own column, on every row.
     let status;
-    if (isFixable(row)) status = 'fixed';
-    else if (!row.sidecarName) status = 'unmatched';
-    else status = 'noMetadata';
-    out.push({ status: status, path: row.path, row: row });
-  }
+    if (needsWriting(row)) status = 'willWrite';
+    else if (source === 'none') status = 'noDate';
+    else if (source === 'google') status = 'googleDate';
+    else status = 'ownDate';
 
-  for (const item of unsupportedFiles) {
-    out.push({ status: 'cannotFix', path: item.path, type: item.type, row: null });
-  }
-
-  return out;
+    return { status: status, path: row.path, row: row };
+  });
 }
 
 
 const STATUS_WORDS = {
-  fixed:      { word: 'Fixed', icon: 'success', cls: 'row-fixed' },
-  noMetadata: { word: 'No metadata', icon: 'warning', cls: 'row-nometa' },
-  unmatched:  { word: "Couldn't match", icon: 'error', cls: 'row-unmatched' },
-  cannotFix:  { word: "Can't be fixed", icon: 'notice', cls: 'row-cannot' }
+  ownDate:    { word: 'Already dated', icon: 'success', cls: 'row-fixed' },
+  willWrite:  { word: 'Filling in', icon: 'success', cls: 'row-fixed' },
+  googleDate: { word: "Google's record", icon: 'warning', cls: 'row-nometa' },
+  noDate:     { word: 'No date anywhere', icon: 'error', cls: 'row-unmatched' }
 };
 
 
@@ -983,16 +1987,18 @@ function drawChips() {
   const all = allTableRows();
   const counts = {
     all: all.length,
-    fixed: all.filter(r => r.status === 'fixed').length,
-    cannotFix: all.filter(r => r.status === 'cannotFix').length,
-    noMetadata: all.filter(r => r.status === 'noMetadata' || r.status === 'unmatched').length
+    ownDate: all.filter(r => r.status === 'ownDate').length,
+    willWrite: all.filter(r => r.status === 'willWrite').length,
+    googleDate: all.filter(r => r.status === 'googleDate').length,
+    noDate: all.filter(r => r.status === 'noDate').length
   };
 
   const chips = [
     { key: 'all', label: 'All', icon: null },
-    { key: 'fixed', label: 'Fixed', icon: 'success' },
-    { key: 'cannotFix', label: "Can't be fixed", icon: 'notice' },
-    { key: 'noMetadata', label: 'No metadata', icon: 'warning' }
+    { key: 'ownDate', label: 'Already dated', icon: 'success' },
+    { key: 'willWrite', label: 'Filling in', icon: 'success' },
+    { key: 'googleDate', label: "Google's record", icon: 'warning' },
+    { key: 'noDate', label: 'No date anywhere', icon: 'error' }
   ];
 
   chipsBox.innerHTML = chips.map(function (c) {
@@ -1017,9 +2023,6 @@ function drawChips() {
 function filteredRows() {
   const all = allTableRows();
   if (currentFilter === 'all') return all;
-  if (currentFilter === 'noMetadata') {
-    return all.filter(r => r.status === 'noMetadata' || r.status === 'unmatched');
-  }
   return all.filter(r => r.status === currentFilter);
 }
 
@@ -1042,29 +2045,81 @@ function drawTable() {
 function tableRowHtml(entry) {
   const meta = STATUS_WORDS[entry.status];
   const row = entry.row;
+  const source = dateSourceFor(row);
 
-  let found = '<span class="empty">&mdash;</span>';
-  let written = '<span class="empty">&mdash;</span>';
+  // Where the date came from is the most important thing in the row, so it gets
+  // its own column and its own wording. "Google's record" and "from the photo"
+  // are very different claims and must never look the same.
+  const sourceCell = source === 'photo'
+    ? '<span class="src-photo">' +
+      (row.partnerClock ? 'from ' + escapeHtml(row.partnerName) : 'from the photo') + '</span>'
+    : source === 'google'
+      ? '<span class="src-google">Google\'s record' +
+        (row.inCluster ? ' <span class="src-batch">upload batch</span>' : '') + '</span>'
+      : '<span class="empty">none</span>';
 
-  if (entry.status === 'fixed' && row.data) {
-    found = escapeHtml(formatFoundDate(row.data));
-    written = escapeHtml(formatDate(row.data.timestamp, row.data.timezone));
-  } else if (entry.status === 'noMetadata') {
-    found = '<span class="empty">none found</span>';
-    written = '<span class="empty">left unchanged</span>';
-  } else if (entry.status === 'cannotFix') {
-    found = '<span class="empty">not read</span>';
-    written = '<span class="empty">left unchanged</span>';
-  }
+  const found = source === 'photo'
+    ? escapeHtml(formatExistingDate(row.existing.clock || row.partnerClock))
+    : source === 'google'
+      ? escapeHtml(formatFoundDate(row.data))
+      : '<span class="empty">none found</span>';
 
-  return '<tr class="' + meta.cls + '">' +
+  return '<tr class="' + meta.cls + (row.inCluster ? ' row-batch' : '') + '">' +
     '<td class="cell-wrap-status"><span class="cell-status">' +
       iconSvg(meta.icon) + escapeHtml(meta.word) + '</span></td>' +
     '<td><span class="cell-file" title="' + escapeHtml(entry.path) + '">' +
       escapeHtml(entry.path) + '</span></td>' +
+    '<td class="col-yesno" data-label="Already has date">' + yesNoCell(row, 'hasDate') + '</td>' +
+    '<td class="col-yesno" data-label="Already has GPS">' + yesNoCell(row, 'hasGps') + '</td>' +
+    '<td class="col-source" data-label="Date source">' + sourceCell + '</td>' +
     '<td class="col-date col-date-found" data-label="Date found">' + found + '</td>' +
-    '<td class="col-date" data-label="Date written">' + written + '</td>' +
+    '<td class="col-date" data-label="Written inside">' +
+      escapeHtml(describePlannedWrite(row)) + '</td>' +
     '</tr>';
+}
+
+
+/**
+ * One of the two "already has it?" cells.
+ *
+ * Four answers, not two: yes, no, "couldn't read", and "not checked". A file we
+ * failed to read is not a file without a date, and a video was never opened at
+ * all - saying "no" for either would be inventing a fact.
+ */
+function yesNoCell(row, field) {
+  if (!row || !row.existing) return '<span class="empty">&mdash;</span>';
+  if (!row.existing.checked) return '<span class="empty">not checked</span>';
+  if (!row.existing.known) return '<span class="empty">couldn\'t read</span>';
+  return row.existing[field] ? 'yes' : '<span class="empty">no</span>';
+}
+
+
+/** A date read out of the file itself, shown plainly. It has no timezone on it. */
+function formatExistingDate(clock) {
+  if (!clock) return 'none';
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return pad(clock.day, 2) + ' ' + months[clock.month - 1] + ' ' + clock.year +
+    ', ' + pad(clock.hour, 2) + ':' + pad(clock.minute, 2);
+}
+
+
+/**
+ * What this run will actually put INSIDE one file. Most rows say "nothing",
+ * and that is the point of the column: on a normal library this tool barely
+ * touches anything, and it should say so file by file.
+ */
+function describePlannedWrite(row) {
+  const plan = writePlanFor(row);
+
+  if (plan.writeDate && plan.writeGps) {
+    return formatDate(row.data.timestamp, row.data.timezone) + ' + location';
+  }
+  if (plan.writeDate) return formatDate(row.data.timestamp, row.data.timezone);
+  if (plan.writeGps) return 'location only';
+
+  if (!row.isJpeg) return 'nothing - file date only';
+  if (dateSourceFor(row) === 'google') return "nothing - Google's date not written";
+  return 'nothing - already has what it needs';
 }
 
 
@@ -1127,18 +2182,26 @@ function iconSvg(name, extraClass) {
 // --- Sorting files into types ----------------------------------------------
 
 const FILE_BUCKETS = [
-  { label: 'JPEG', extensions: ['.jpg', '.jpeg'] },
-  { label: 'HEIC', extensions: ['.heic', '.heif'] },
-  { label: 'PNG',  extensions: ['.png'] },
-  { label: 'GIF',  extensions: ['.gif'] },
-  { label: 'WEBP', extensions: ['.webp'] },
-  { label: 'MP4',  extensions: ['.mp4'] },
-  { label: 'MOV',  extensions: ['.mov'] },
-  { label: 'JSON', extensions: ['.json'] }
+  { label: 'JPEG',  extensions: ['.jpg', '.jpeg'] },
+  { label: 'HEIC',  extensions: ['.heic', '.heif'] },
+  { label: 'PNG',   extensions: ['.png'] },
+  { label: 'GIF',   extensions: ['.gif'] },
+  { label: 'WEBP',  extensions: ['.webp'] },
+  // RAW files are TIFF underneath, whatever the camera maker calls them.
+  { label: 'RAW',   extensions: ['.dng', '.cr2', '.cr3', '.nef', '.arw', '.raf',
+                                 '.orf', '.rw2', '.srw', '.pef'] },
+  { label: 'Video', extensions: ['.mp4', '.mov', '.m4v', '.3gp', '.avi', '.mkv',
+                                 '.mpg', '.mpeg', '.mts', '.webm'] },
+  { label: 'JSON',  extensions: ['.json'] }
 ];
 
-// The buckets this tool cannot do anything with, in the order they are listed.
-const CANNOT_FIX_BUCKETS = ['HEIC', 'PNG', 'GIF', 'WEBP', 'MP4', 'MOV', 'other'];
+// The buckets we never write into. They still go into the download, and they
+// still get their file date put right - that costs nothing and is most of the
+// value for most people. We simply do not touch what is inside them.
+const READ_ONLY_BUCKETS = ['HEIC', 'PNG', 'GIF', 'WEBP', 'RAW', 'Video', 'other'];
+
+// Everything except the JSON sidecars is a file the user wants back.
+function isMediaBucket(bucket) { return bucket !== 'JSON'; }
 
 
 /**
@@ -1301,9 +2364,13 @@ piexif.TAGS['Exif'][OFFSET_TIME_DIGITIZED] = { 'name': 'OffsetTimeDigitized', 't
  * Writes our date and GPS tags into a set of EXIF sections.
  * Kept in one place because it is needed twice: once for the normal case, and once
  * for the emergency "write only our tags" fallback further down.
+ *
+ * The plan says which of the two the photo actually needs. A photo that already
+ * had a perfectly good date keeps it, and only its missing location is filled
+ * in - see writePlanFor().
  */
-function applyDateAndGpsTags(exifObj, data) {
-  if (data.timestamp) {
+function applyDateAndGpsTags(exifObj, data, plan) {
+  if (plan.writeDate && data.timestamp) {
     const stamp = formatExifDateTime(data.timestamp, data.timezone);
     exifObj['Exif'][piexif.ExifIFD.DateTimeOriginal] = stamp;   // when the photo was taken
     exifObj['Exif'][piexif.ExifIFD.DateTimeDigitized] = stamp;  // when it became a file
@@ -1320,7 +2387,7 @@ function applyDateAndGpsTags(exifObj, data) {
     exifObj['Exif'][OFFSET_TIME] = offset;
   }
 
-  if (data.latitude !== null && data.longitude !== null) {
+  if (plan.writeGps && data.latitude !== null && data.longitude !== null) {
     exifObj['GPS'][piexif.GPSIFD.GPSLatitudeRef] = data.latitude >= 0 ? 'N' : 'S';
     exifObj['GPS'][piexif.GPSIFD.GPSLatitude] = decimalToDms(data.latitude);
     exifObj['GPS'][piexif.GPSIFD.GPSLongitudeRef] = data.longitude >= 0 ? 'E' : 'W';
@@ -1369,7 +2436,7 @@ function decimalToDms(decimal) {
  * and returns a NEW JPEG binary string with those details written into its EXIF.
  * The original file on disk is never touched.
  */
-function writeExifIntoJpeg(jpegBinary, data) {
+function writeExifIntoJpeg(jpegBinary, data, plan, existingClock) {
   // Read whatever EXIF the photo already has, so we keep camera model, exposure and
   // everything else. If the photo has no EXIF at all we start from an empty set.
   let exifObj;
@@ -1385,10 +2452,10 @@ function writeExifIntoJpeg(jpegBinary, data) {
   if (!exifObj['GPS']) exifObj['GPS'] = {};
 
   // The date tags, the timezone offset tags, and the location.
-  applyDateAndGpsTags(exifObj, data);
+  applyDateAndGpsTags(exifObj, data, plan);
 
   // Turn the tags back into raw EXIF bytes, then put them into the JPEG.
-  return piexif.insert(dumpExifSafely(exifObj, data), jpegBinary);
+  return piexif.insert(dumpExifSafely(exifObj, data, plan, existingClock), jpegBinary);
 }
 
 
@@ -1403,7 +2470,7 @@ function emptyExif() {
  * piexif refuses to write back out, so there are two fallbacks. The point is that a
  * strange photo still gets its date, rather than being skipped entirely.
  */
-function dumpExifSafely(exifObj, data) {
+function dumpExifSafely(exifObj, data, plan, existingClock) {
   // Attempt 1: write everything, keeping all the photo's original tags.
   try {
     return piexif.dump(exifObj);
@@ -1420,7 +2487,22 @@ function dumpExifSafely(exifObj, data) {
   // Attempt 3: give up on the original tags and write ONLY our date and location.
   // The photo loses its old EXIF, but it gets the correct date, which is the point.
   const minimal = emptyExif();
-  applyDateAndGpsTags(minimal, data);
+  applyDateAndGpsTags(minimal, data, plan);
+
+  // This path throws the photo's original tags away, so if we were only adding a
+  // location, carry its own date across by hand. Otherwise adding GPS to a photo
+  // would silently cost it the capture date it already had - the exact damage
+  // this tool exists to undo.
+  if (!plan.writeDate && existingClock) {
+    const stamp =
+      pad(existingClock.year, 4) + ':' + pad(existingClock.month, 2) + ':' +
+      pad(existingClock.day, 2) + ' ' + pad(existingClock.hour, 2) + ':' +
+      pad(existingClock.minute, 2) + ':' + pad(existingClock.second, 2);
+    minimal['Exif'][piexif.ExifIFD.DateTimeOriginal] = stamp;
+    minimal['Exif'][piexif.ExifIFD.DateTimeDigitized] = stamp;
+    minimal['0th'][piexif.ImageIFD.DateTime] = stamp;
+  }
+
   return piexif.dump(minimal);
 }
 
@@ -1450,9 +2532,68 @@ function binaryStringToBytes(text) {
 // PART 5 - THE DOWNLOAD BUTTON
 // ---------------------------------------------------------------------------
 
-/** A photo is worth fixing if we found a sidecar with a date or a location in it. */
-function isFixable(row) {
-  return Boolean(row.data) && (Boolean(row.data.timestamp) || row.data.latitude !== null);
+/**
+ * Works out what, if anything, should be written INSIDE one file.
+ *
+ * Note this is only about the file's own metadata. Every file goes into the
+ * download and every file gets its date put right whatever this returns - see
+ * zipEntryDateFor().
+ *
+ * ONLY JPEGs ARE EVER WRITTEN TO. HEIC, RAW and video are copied through
+ * untouched. Measuring a real export showed they come out of Takeout with their
+ * dates and locations already intact, so there is nothing to repair and no
+ * reason to risk rewriting them.
+ *
+ * WITH "ONLY WHAT IS MISSING" TICKED - the default - only gaps get filled. A
+ * photo that came out of Takeout with its own DateTimeOriginal keeps it.
+ * Overwriting a camera's own reading with Google's is a change nobody asked for.
+ *
+ * WITH IT CLEARED, whatever the sidecar says wins. That is what you want if you
+ * corrected a date or a place inside Google Photos, because those edits were
+ * never written back into the file.
+ *
+ * AND SEPARATELY: a date that exists only in the sidecar is Google's record of
+ * when the photo arrived, not when it was taken. That has its own box, off by
+ * default, because writing a guess into DateTimeOriginal makes it look like a
+ * recovered fact forever afterwards.
+ */
+function writePlanFor(row) {
+  // The gate is what the file REALLY is, not what it is called. A ".jpg" that
+  // is a PNG inside is routine on Windows, and trying to splice an EXIF segment
+  // into it would fail - so it is copied through instead, like any other file
+  // we do not write to.
+  if (!row.isJpeg || !row.existing || row.existing.format !== 'jpeg') {
+    return { writeDate: false, writeGps: false };
+  }
+
+  const sidecarHasDate = Boolean(row.data && row.data.timestamp);
+  const sidecarHasGps = Boolean(row.data && row.data.latitude !== null);
+  const alreadyHasDate = Boolean(row.existing && row.existing.hasDate);
+  const alreadyHasGps = Boolean(row.existing && row.existing.hasGps);
+
+  let writeDate, writeGps;
+
+  if (onlyMissingBox.checked) {
+    writeDate = sidecarHasDate && !alreadyHasDate;
+    writeGps = sidecarHasGps && !alreadyHasGps;
+  } else {
+    writeDate = sidecarHasDate;
+    writeGps = sidecarHasGps;
+  }
+
+  // The date is only Google's guess when the photo had none of its own. If the
+  // photo has a date and you have asked for the sidecar to overwrite it, that is
+  // a correction you made in Google Photos, and it is trustworthy.
+  if (dateSourceFor(row) === 'google' && !googleDatesBox.checked) writeDate = false;
+
+  return { writeDate: writeDate, writeGps: writeGps };
+}
+
+
+/** Is there anything at all to write inside this file? */
+function needsWriting(row) {
+  const plan = writePlanFor(row);
+  return plan.writeDate || plan.writeGps;
 }
 
 
@@ -1519,31 +2660,119 @@ function wait(milliseconds) {
 
 
 /**
- * The "date modified" to stamp on a photo inside the zip.
+ * The "date modified" to stamp on one photo inside the zip.
  *
- * THE PROBLEM. A zip file records "date modified" as a bare clock reading - "3rd of
- * August, 03:31" - with no timezone attached at all. Whatever unzips the file reads
- * that as LOCAL time. JSZip fills the reading in from UTC, so on any computer that is
- * not on UTC every photo comes out with a date modified that is wrong by however far
- * your timezone sits from UTC. Four hours into the future on New York time.
+ * THIS IS THE FIX FOR THE SYMPTOM PEOPLE ACTUALLY SEE. Unzipping stamps every file
+ * with the moment it was extracted, so a fresh Takeout looks in Finder and Explorer
+ * as though the whole library was shot today. That is a file system date, not EXIF,
+ * and it is a separate problem from anything inside the photo. Giving each zip entry
+ * the real capture date means the photo comes out of the zip already reading right,
+ * whether or not we touched a single byte of its EXIF.
  *
- * THE FIX. Wind the clock back by that same gap before handing the date over. JSZip
- * then stores the local reading, which is what the unzipping program is expecting.
+ * THIS APPLIES TO EVERY FILE, including the ones we never write into. A HEIC, a
+ * RAW file and a video all come out of the zip correctly dated even though not one
+ * byte inside them is touched. That costs nothing and is most of the value for most
+ * people.
  *
- * This is the ONE place the computer's own timezone is the right thing to use, and it
- * does not touch the photo's capture date. "Date modified" means "when this file was
- * written, on this computer", so the computer's clock is exactly the right answer. The
- * date inside the photo is a different question - that still comes from the GPS
- * position and never from this computer.
+ * THE ORDER IS:
+ *   1. the file's own DateTimeOriginal, if it has one - this is the trustworthy one
+ *   2. the sidecar's photoTakenTime, if the file has no date inside it
+ *   3. the file's own modified date, if there is neither. Never "now".
+ *
+ * The one wrinkle: if we are about to write the sidecar's date INTO the photo, the
+ * file has to say the same thing as the photo will, so that case jumps the queue.
+ * With the boxes at their defaults this is exactly the 1-2-3 order above. Finder
+ * disagreeing with the photo it is describing would be a new version of the bug
+ * this tool exists to fix.
  */
-function zipDateFor(moment) {
-  return new Date(moment.getTime() - moment.getTimezoneOffset() * 60000);
+function zipEntryDateFor(row) {
+  const plan = writePlanFor(row);
+
+  if (plan.writeDate && row.data && row.data.timestamp) {
+    return zipClockDate(wallClockIn(row.data.timestamp, row.data.timezone));
+  }
+
+  if (row.existing && row.existing.clock) {
+    return zipClockDate(row.existing.clock);
+  }
+
+  // The other half of a Live Photo. See linkLivePhotoPartners().
+  if (row.partnerClock) {
+    return zipClockDate(row.partnerClock);
+  }
+
+  if (row.data && row.data.timestamp) {
+    return zipClockDate(wallClockIn(row.data.timestamp, row.data.timezone));
+  }
+
+  return zipDateFor(new Date(row.file.lastModified));
 }
 
 
-/** Runs when the button is clicked: writes the EXIF, zips it all up, downloads it. */
+/**
+ * Hands JSZip one clock reading.
+ *
+ * A zip records "date modified" as a bare clock reading - "14th of July, 15:23" -
+ * with no timezone on it at all, and JSZip fills that reading in from the UTC side of
+ * whatever Date it is given. Whatever unzips the file reads it back as LOCAL time.
+ *
+ * So to make a photo come out of the zip reading 15:23, the Date we hand over has to
+ * have 15:23 on its UTC side, which is exactly what Date.UTC builds. The reading we
+ * use is the same one we write into the photo's EXIF, so the date Finder shows and
+ * the date inside the photo agree. Neither field carries a timezone; making the two
+ * bare readings match each other is the whole point.
+ */
+function zipClockDate(clock) {
+  // A zip cannot record a year before 1980 - the format has no room for it - and
+  // stops at 2107. Rather than let an out-of-range year wrap round to a nonsense
+  // date, pin it to the nearest end and let the EXIF inside the photo carry the
+  // true one. Scans of old family photos are the case that hits this.
+  const year = Math.min(Math.max(clock.year, 1980), 2107);
+
+  return new Date(Date.UTC(
+    year, clock.month - 1, clock.day, clock.hour, clock.minute, clock.second
+  ));
+}
+
+
+/**
+ * Turns a real moment - "now", or a file's own modified date - into the reading
+ * JSZip should store for it.
+ *
+ * Same quirk as above, approached from the other end: this one starts from an
+ * instant rather than a clock reading, so it winds the clock back by this computer's
+ * distance from UTC to leave the local reading on the Date's UTC side.
+ *
+ * This is the ONE place the computer's own timezone is the right thing to use, and
+ * it never touches a photo's capture date. "Date modified" on a file with no capture
+ * date at all means "when this file was written, on this computer", so the
+ * computer's clock is exactly the right answer.
+ */
+function zipDateFor(moment) {
+  // A file with a broken or missing modified date must not become a far-future
+  // zip entry, so this goes through the same 1980-2107 clamp as everything else.
+  if (!moment || !Number.isFinite(moment.getTime())) moment = new Date();
+
+  const shifted = new Date(moment.getTime() - moment.getTimezoneOffset() * 60000);
+
+  return zipClockDate({
+    year: shifted.getUTCFullYear(), month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(), hour: shifted.getUTCHours(),
+    minute: shifted.getUTCMinutes(), second: shifted.getUTCSeconds()
+  });
+}
+
+
+/**
+ * Runs when the button is clicked: dates everything, writes EXIF where it is
+ * genuinely missing, zips it all up and downloads it.
+ *
+ * EVERY media file goes in - HEIC, RAW and video included. They are copied
+ * through untouched, but they get the right date on the outside, which is the
+ * thing that was broken for all of them.
+ */
 async function fixPhotos() {
-  const todo = scannedRows.filter(isFixable);
+  const todo = scannedRows;
   if (todo.length === 0) return;
 
   // Work out how many zip files this is going to take before starting anything.
@@ -1562,15 +2791,23 @@ async function fixPhotos() {
   skippedBox.innerHTML = '';
   progressLine.textContent = '';
 
+  // One run at a time. Without this a second click part-way through starts a
+  // parallel run that shares usedNames and the tallies, and the two interleave.
+  if (downloadButton.getAttribute('aria-busy') === 'true') return;
+  downloadButton.disabled = true;
+  downloadButton.setAttribute('aria-busy', 'true');
+
   // Back to the waiting screen. Writing and zipping is the second long stretch,
   // and it deserves the same five signs of life as the first one.
-  beginWork('Fixing your photos');
+  beginWork('Dating your files');
   reportWork(0, todo.length, '');
 
-  const skipped = [];   // files that went wrong
-  const renamed = [];   // files renamed because two folders used the same name
+  const skipped = [];      // files we could not read at all - the only ones left out
+  const notWritten = [];   // files that ARE in the zip, but we could not write inside
+  const renamed = [];      // files renamed because two folders used the same name
   const usedNames = new Set();
-  let fixedCount = 0;
+  let fixedCount = 0;       // photos we wrote new EXIF into
+  let unchangedCount = 0;   // photos that already had everything, copied through
   let zipsMade = 0;
   let doneCount = 0;    // photos finished so far, counted across ALL the batches
 
@@ -1578,7 +2815,7 @@ async function fixPhotos() {
 
     // A brand new, empty zip for each batch.
     let zip = new JSZip();
-    let fixedInThisZip = 0;
+    let filesInThisZip = 0;
 
     for (const row of chunks[c]) {
       if (stopRequested) break;
@@ -1591,24 +2828,50 @@ async function fixPhotos() {
       if (doneCount % 5 === 0) await pause();
 
       try {
-        // Read the photo, write the new EXIF into it, and add it to the zip.
+        const plan = writePlanFor(row);
+        let willWrite = plan.writeDate || plan.writeGps;
+
+        // Read the file, and write new EXIF into it only if it is a JPEG that is
+        // actually missing something. Everything else - a photo that already has
+        // its date, and every HEIC, RAW file and video - goes into the zip byte
+        // for byte as Takeout produced it.
         const bytes = new Uint8Array(await row.file.arrayBuffer());
-        const fixedBinary = writeExifIntoJpeg(bytesToBinaryString(bytes), row.data);
+        let payload = bytes;
+
+        if (willWrite) {
+          try {
+            payload = binaryStringToBytes(writeExifIntoJpeg(
+              bytesToBinaryString(bytes), row.data, plan,
+              row.existing ? row.existing.clock : null));
+          } catch (e) {
+            // FAILING TO IMPROVE A FILE MUST NEVER COST YOU THE FILE. An odd
+            // JPEG that piexif refuses to rewrite still goes into the download,
+            // untouched, with its date on the outside put right. Losing it
+            // would be a far worse outcome than not filling in its metadata.
+            payload = bytes;
+            willWrite = false;
+            notWritten.push({ name: row.path,
+                              reason: e && e.message ? e.message : String(e) });
+          }
+        }
 
         const nameInZip = makeUniqueName(row.name, usedNames);
         if (nameInZip !== row.name) renamed.push(row.path + ' -> ' + nameInZip);
 
-        // The date stamp has to be corrected on the way in, or every photo comes out
-        // of the zip with a date modified in the future. See zipDateFor above.
-        zip.file(nameInZip, binaryStringToBytes(fixedBinary), { date: zipDateFor(new Date()) });
-        fixedCount++;
-        fixedInThisZip++;
+        // Stamp the entry with the file's own capture date, so it comes out of the
+        // zip already reading correctly in Finder and Explorer instead of showing
+        // the moment it was extracted. See zipEntryDateFor above.
+        zip.file(nameInZip, payload, { date: zipEntryDateFor(row) });
+        filesInThisZip++;
+
+        if (willWrite) fixedCount++; else unchangedCount++;
 
         // Remember how this one went, so the report can say so later.
-        row.runStatus = 'fixed';
+        row.runStatus = willWrite ? 'fixed' : 'unchanged';
         row.runError = null;
       } catch (e) {
-        // One bad photo must never stop the run.
+        // Only a failure to READ the file gets this far, and that is the one
+        // case where there is genuinely nothing to put in the zip.
         const reason = e && e.message ? e.message : String(e);
         skipped.push({ name: row.path, reason: reason });
         row.runStatus = 'error';
@@ -1617,11 +2880,12 @@ async function fixPhotos() {
 
       // The Stop button promises to keep what has already been done, so the
       // batch that is part-built still gets zipped and downloaded below.
-      stopButton.textContent = 'Stop - keep the ' + formatCount(fixedCount) + ' already fixed';
+      stopButton.textContent = 'Stop - keep the ' +
+        formatCount(fixedCount + unchangedCount) + ' already done';
     }
 
     // Every photo in this batch failed, so there is no zip worth building.
-    if (fixedInThisZip === 0) {
+    if (filesInThisZip === 0) {
       zip = null;
       await pause();
       continue;
@@ -1630,13 +2894,13 @@ async function fixPhotos() {
     // Squeeze this batch into a zip file. This also takes a while, so keep the
     // ticker talking rather than letting the screen go quiet.
     workHeading.textContent = 'Building ' + zipNameFor(c, chunks.length);
-    tickerFile.textContent = 'Packing ' + formatCount(fixedInThisZip) + ' photos...';
+    tickerFile.textContent = 'Packing ' + formatCount(filesInThisZip) + ' photos...';
     await pause();
 
     let blob = await zip.generateAsync(
       { type: 'blob', compression: 'STORE' },   // photos are already compressed
       function (status) {
-        tickerFile.textContent = 'Packing ' + formatCount(fixedInThisZip) +
+        tickerFile.textContent = 'Packing ' + formatCount(filesInThisZip) +
           ' photos... ' + Math.round(status.percent) + '%';
       }
     );
@@ -1666,21 +2930,37 @@ async function fixPhotos() {
 
   endWork();
 
-  if (fixedCount === 0) {
-    progressLine.textContent = 'Nothing could be fixed. See the list below.';
+  const packed = fixedCount + unchangedCount;
+
+  if (packed === 0) {
+    progressLine.textContent = 'Nothing could be packed. See the list below.';
   } else {
+    // Two numbers, not one. Saying "fixed 65" when 55 of them were already
+    // correct and only had their file date restored would be the same overclaim
+    // this whole screen exists to stop.
     progressLine.textContent =
-      (stopRequested ? 'Stopped. Kept ' : 'Done. Fixed ') + formatCount(fixedCount) +
-      ' photos in ' + zipsMade + ' zip ' + plural(zipsMade, 'file') +
+      (stopRequested ? 'Stopped. Kept ' : 'Done. ') + formatCount(packed) +
+      ' files in ' + zipsMade + ' zip ' + plural(zipsMade, 'file') + ', all carrying ' +
+      'their real date' +
+      (fixedCount > 0 ? '. ' + formatCount(fixedCount) + ' had metadata written in' : '') +
+      (unchangedCount > 0
+        ? (fixedCount > 0 ? ' and ' : '. ') + formatCount(unchangedCount) +
+          ' were copied through untouched'
+        : '') +
       (skipped.length > 0 ? '. Skipped ' + skipped.length : '') +
       '. Your ' + plural(zipsMade, 'download') + ' should have started.';
   }
 
-  drawSkipped(skipped, renamed);
+  drawSkipped(skipped, renamed, notWritten);
 
   // Remember what happened, and let the report be downloaded now there is something
   // real to put in it.
-  lastRunSummary = { fixedCount: fixedCount, skippedCount: skipped.length, zipCount: zipsMade };
+  lastRunSummary = {
+    fixedCount: fixedCount,
+    unchangedCount: unchangedCount,
+    skippedCount: skipped.length,
+    zipCount: zipsMade
+  };
   showResults();
 }
 
@@ -1712,11 +2992,23 @@ function makeUniqueName(name, usedNames) {
 
 
 /** Lists any files that were skipped or renamed, under the progress line. */
-function drawSkipped(skipped, renamed) {
+function drawSkipped(skipped, renamed, notWritten) {
   let html = '';
 
+  // In the zip, just not improved. Kept separate from "skipped" because the two
+  // mean very different things to somebody checking their library is all there.
+  if (notWritten && notWritten.length > 0) {
+    html += '<p class="skipped-title">These are in your download with the right date, ' +
+            'but their metadata could not be written:</p><ul class="skipped-list">';
+    html += notWritten.map(function (item) {
+      return '<li>' + escapeHtml(item.name) + ' <span class="reason">' +
+             escapeHtml(item.reason) + '</span></li>';
+    }).join('');
+    html += '</ul>';
+  }
+
   if (skipped.length > 0) {
-    html += '<p class="skipped-title">These files could not be fixed and are not in the zip:</p><ul class="skipped-list">';
+    html += '<p class="skipped-title">These files could not be read at all and are not in the zip:</p><ul class="skipped-list">';
     html += skipped.map(function (item) {
       return '<li>' + escapeHtml(item.name) + ' <span class="reason">' + escapeHtml(item.reason) + '</span></li>';
     }).join('');
@@ -1782,18 +3074,6 @@ function buildReportRows(stage) {
     rows.push(reportRowForPhoto(row, stage));
   }
 
-  // The files this tool cannot fix: HEIC, video, and anything else.
-  for (const item of unsupportedFiles) {
-    rows.push({
-      filename: item.path,
-      status: 'unsupported-type',
-      sidecar: '',
-      date: '',
-      gps: '',
-      error: 'Not a JPEG (' + item.type + '), so this tool cannot fix it'
-    });
-  }
-
   // The JSON sidecars. They are read for their dates and locations but are not
   // photos, so nothing is written to them and they are not in the download.
   for (const path of sidecarPaths) {
@@ -1801,9 +3081,14 @@ function buildReportRows(stage) {
       filename: path,
       status: 'unsupported-type',
       sidecar: '',
+      hadDate: '',
+      hadGps: '',
+      dateSource: '',
+      uploadBatch: '',
+      fileDate: '',
       date: '',
       gps: '',
-      error: 'JSON metadata file - read for its date and location, not a photo'
+      error: 'JSON metadata file - read for what the photos are missing, not a photo'
     });
   }
 
@@ -1817,14 +3102,27 @@ function reportRowForPhoto(row, stage) {
     filename: row.path,
     status: '',
     sidecar: row.sidecarName || '',
+    // What the photo already carried, read before anything was written. These
+    // two columns are the ones that show how little usually needed doing.
+    hadDate: describeAlreadyHad(row, 'hasDate'),
+    hadGps: describeAlreadyHad(row, 'hasGps'),
+    // Where the date on this file came from. The single most important column
+    // in the report: "google" means a date nobody has confirmed is the truth.
+    dateSource: dateSourceFor(row),
+    uploadBatch: row.inCluster ? 'yes' : '',
+    fileDate: describeZipDate(row),
     date: '',
     gps: '',
     error: ''
   };
 
-  // No sidecar was found, so there was never anything to write.
-  if (!row.sidecarName) {
-    entry.status = 'no-sidecar';
+  // Not a JPEG. It goes into the download, correctly dated, and nothing inside
+  // it is touched.
+  if (!row.isJpeg) {
+    entry.status = 'copied-through';
+    entry.error = row.bucket + ' file - copied through untouched, file date set from ' +
+                  (entry.dateSource === 'photo' ? 'its own metadata' :
+                   entry.dateSource === 'google' ? "Google's record" : 'its original file date');
     return entry;
   }
 
@@ -1835,22 +3133,28 @@ function reportRowForPhoto(row, stage) {
     return entry;
   }
 
-  // The sidecar was read but had neither a date nor a location in it.
-  if (!isFixable(row)) {
-    entry.status = 'skipped-error';
-    entry.error = 'The sidecar had no date and no location in it';
-    return entry;
-  }
-
-  // Everything left is a photo this tool CAN fix.
-
   // The preview report answers "what will happen", so it never looks at the run
   // at all. It fills in the date and location that ARE going to be written,
   // which is the whole point of checking before committing to a big download.
   if (stage === 'preview') {
+    const plan = writePlanFor(row);
+
+    // Nothing is missing, so nothing goes in. Saying "ready to fix" here would
+    // be the overclaim this pass exists to remove.
+    if (!plan.writeDate && !plan.writeGps) {
+      entry.status = entry.dateSource === 'none' ? 'no-date-anywhere' : 'already-complete';
+      entry.error = entry.dateSource === 'google'
+        ? "The only date is Google's record of when this photo entered the library. " +
+          'It is not being written into the photo.'
+        : entry.dateSource === 'none'
+          ? 'No date inside the file and none in a sidecar either.'
+          : 'Already has what it needs. Nothing is written into it; its file date is set.';
+      return entry;
+    }
+
     entry.status = 'ready-to-fix';
-    entry.date = describeWrittenDate(row.data);
-    entry.gps = describeWrittenGps(row.data);
+    if (plan.writeDate) entry.date = describeWrittenDate(row.data);
+    if (plan.writeGps) entry.gps = describeWrittenGps(row.data);
     return entry;
   }
 
@@ -1862,9 +3166,23 @@ function reportRowForPhoto(row, stage) {
   // that are perfectly fine and were never asked to be written yet - which is
   // exactly the wrong thing to tell somebody worried about their photos.
   if (row.runStatus === 'fixed') {
+    const plan = writePlanFor(row);
     entry.status = 'fixed';
-    entry.date = describeWrittenDate(row.data);
-    entry.gps = describeWrittenGps(row.data);
+    if (plan.writeDate) entry.date = describeWrittenDate(row.data);
+    if (plan.writeGps) entry.gps = describeWrittenGps(row.data);
+    return entry;
+  }
+
+  // In the zip, but nothing was written inside it. Its file date was set and
+  // that was all it needed.
+  if (row.runStatus === 'unchanged') {
+    entry.status = entry.dateSource === 'none' ? 'no-date-anywhere' : 'already-complete';
+    entry.error = entry.dateSource === 'google'
+      ? "The only date was Google's record of when this photo entered the library. " +
+        'It was not written into the photo.'
+      : entry.dateSource === 'none'
+        ? 'No date inside the file and none in a sidecar either.'
+        : 'Already had what it needed. Nothing was written into it; its file date was set.';
     return entry;
   }
 
@@ -1881,6 +3199,27 @@ function reportRowForPhoto(row, stage) {
     ? 'Not reached - the run was stopped before this photo. Nothing was written to it.'
     : 'Ready to fix. The download has not been run yet, so nothing has been written.';
   return entry;
+}
+
+
+/**
+ * "yes", "no" or "couldn't read" for one of the two "already had it" columns.
+ * A photo we failed to read is not a photo without a date, so it never says no.
+ */
+function describeAlreadyHad(row, field) {
+  if (!row.existing) return '';
+  if (!row.existing.checked) return 'not checked';
+  if (!row.existing.known) return "couldn't read";
+  return row.existing[field] ? 'yes' : 'no';
+}
+
+
+/** The date this file will carry on the OUTSIDE, as Finder will show it. */
+function describeZipDate(row) {
+  const date = zipEntryDateFor(row);
+  return date.getUTCFullYear() + ':' + pad(date.getUTCMonth() + 1, 2) + ':' +
+         pad(date.getUTCDate(), 2) + ' ' + pad(date.getUTCHours(), 2) + ':' +
+         pad(date.getUTCMinutes(), 2) + ':' + pad(date.getUTCSeconds(), 2);
 }
 
 
@@ -1931,15 +3270,29 @@ function buildReportCsv(rows, stage) {
   lines.push(csvRow(['Files found', fileInventory ? fileInventory.total : rows.length]));
   lines.push(csvRow(['JPEGs found', fileInventory ? fileInventory.counts.JPEG : '']));
   if (isPreview) {
-    lines.push(csvRow(['Photos ready to fix', n('ready-to-fix')]));
+    lines.push(csvRow(['JPEGs that need something written', n('ready-to-fix')]));
+    lines.push(csvRow(['JPEGs that already have what they need', n('already-complete')]));
   } else {
-    lines.push(csvRow(['Photos fixed', n('fixed')]));
-    lines.push(csvRow(['Photos not reached (run stopped early)', n('ready-to-fix')]));
+    lines.push(csvRow(['JPEGs written into', n('fixed')]));
+    lines.push(csvRow(['JPEGs already complete, copied through untouched', n('already-complete')]));
+    lines.push(csvRow(['Files not reached (run stopped early)', n('ready-to-fix')]));
   }
-  lines.push(csvRow(['Photos with no sidecar', n('no-sidecar')]));
-  lines.push(csvRow(['Photos skipped because of an error', n('skipped-error')]));
-  lines.push(csvRow(['Files that are not JPEGs (JSON sidecars, HEIC, video and so on)',
+  lines.push(csvRow(['Files copied through untouched (HEIC, RAW, video)', n('copied-through')]));
+  lines.push(csvRow(['Files with no date anywhere', n('no-date-anywhere')]));
+  lines.push(csvRow(['Files skipped because of an error', n('skipped-error')]));
+  lines.push(csvRow(['JSON sidecars read (not photos, not in the download)',
                      n('unsupported-type')]));
+
+  // The provenance summary. This is the number that matters most in this file.
+  const googleDated = scannedRows.filter(r => dateSourceFor(r) === 'google').length;
+  lines.push(csvRow(["Dates that are Google's record, not the photo's own", googleDated]));
+  if (dateClusters.length > 0) {
+    const biggest = dateClusters.reduce((a, b) => (b.count > a.count ? b : a));
+    lines.push(csvRow(['Upload-batch warning',
+      formatCount(biggest.count) + ' of those share timestamps spanning ' +
+      describeSpan(biggest.spanSeconds) + '. That is one upload, not ' +
+      formatCount(biggest.count) + ' separate capture times.']));
+  }
   if (!isPreview) {
     lines.push(csvRow(['Zip files downloaded', lastRunSummary ? lastRunSummary.zipCount : 0]));
   }
@@ -1950,11 +3303,16 @@ function buildReportCsv(rows, stage) {
   // tense with the stage, so a column can never be read as a claim that
   // something was written when it was not.
   lines.push(csvRow(['filename', 'status', 'sidecar filename used',
-                     isPreview ? 'date that will be written' : 'date written',
-                     isPreview ? 'GPS that will be written' : 'GPS written',
-                     'error message']));
+                     'already has date', 'already has GPS',
+                     'date source', 'part of an upload batch',
+                     isPreview ? 'file date that will be set' : 'file date set',
+                     isPreview ? 'date that will be written inside' : 'date written inside',
+                     isPreview ? 'GPS that will be written inside' : 'GPS written inside',
+                     'notes']));
   for (const row of rows) {
-    lines.push(csvRow([row.filename, row.status, row.sidecar, row.date, row.gps, row.error]));
+    lines.push(csvRow([row.filename, row.status, row.sidecar,
+                       row.hadDate, row.hadGps, row.dateSource, row.uploadBatch,
+                       row.fileDate, row.date, row.gps, row.error]));
   }
 
   // Windows-style line endings, because that is what spreadsheet programs expect.
@@ -1990,6 +3348,15 @@ function csvCell(value) {
   // inside a filename cannot break the file apart.
   return '"' + text.replace(/"/g, '""') + '"';
 }
+
+
+// ---------------------------------------------------------------------------
+// PART 7 - STARTUP
+// ---------------------------------------------------------------------------
+
+// Decide straight away whether this browser can pick a folder at all, before
+// anybody has a chance to press something that cannot work.
+checkFolderPickerSupport();
 
 
 /** Asks the browser to save a file we built in memory. Nothing is uploaded anywhere. */

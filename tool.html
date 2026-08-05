@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <title>Save the Dates — Fix Google Photos Takeout Dates | Free, No Install</title>
-  <meta name="description" content="Your Google Takeout photos all show today's date. Save the Dates puts the real capture dates and locations back into your photo files. Free, runs in your browser, nothing uploaded, no file limit.">
+  <meta name="description" content="Your Google Takeout photos all show today's date. That's the file's modified date, reset by unzipping. Save the Dates puts the real dates back on the files, and fills in the photos that genuinely have none. Free, runs in your browser, nothing uploaded.">
 
   <!-- Share card. og-image.png is rendered from og-image.svg; edit the SVG. -->
   <meta property="og:title" content="Save the Dates - Photo Date &amp; Timezone Repair">
@@ -32,13 +32,17 @@
     <h1>Save the Dates</h1>
 
     <p class="lead">
-      Google Photos gave your memories back. It kept the when and the where.
+      Every photo says today's date. That's the file's modified date, reset when you
+      unzipped &mdash; not something Google stripped out of your pictures.
     </p>
 
     <p class="hero-body">
-      Exported your photos out of Google Photos and now every single one says today's
-      date? That's not a bug you caused. Drop your export folder below and get the real
-      dates and locations back.
+      Most camera and phone photos already carry their real date inside them and are not
+      touched. Every file with a date to be found &mdash; inside it, in its Live Photo
+      partner, or in Google's record &mdash; comes out of the zip carrying that date, JPEG,
+      HEIC, RAW and video alike. Only two things genuinely need the .json sidecar: photos
+      that never had a date of their own, like screenshots and pictures saved out of
+      WhatsApp, and any date or location you corrected inside Google Photos.
     </p>
 
     <p class="trust">
@@ -111,11 +115,35 @@
           <button type="button" class="btn btn-secondary" id="tryAgainButton">Try again</button>
         </div>
 
+        <!-- State: this browser has no way to choose a folder.
+             Phone browsers cannot do it, and they do not admit that in a way a
+             single property check can catch, so app.js decides on load. See
+             checkFolderPickerSupport(). Nothing pressable is shown here: a
+             disabled button would only invite people to keep trying. -->
+        <div class="dz-state" id="dzNoPicker" hidden>
+          <svg class="dz-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+               stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="8" cy="8" r="6.25"/><path d="M8 7.2v4"/><path d="M8 4.9h.01"/>
+          </svg>
+          <p class="dz-headline">This one needs a computer</p>
+          <p class="dz-body">
+            Save the Dates works on a whole folder at once, and choosing a folder
+            isn't something phone browsers can do. Open this page on a desktop or
+            laptop and the folder picker will be here.
+          </p>
+          <p class="dz-body">
+            A Takeout export usually runs to tens of gigabytes, so a phone is the
+            wrong place to unpack one anyway.
+          </p>
+        </div>
+
         <!-- The real file input. Hidden, and driven by the label and buttons above. -->
         <input type="file" id="folderPicker" webkitdirectory multiple hidden>
       </div>
 
-      <div class="notice">
+      <!-- Hidden along with the drop zone when there is no folder picker: this
+           is advice for something that cannot be done on that device. -->
+      <div class="notice" id="folderNotice">
         <svg class="icon notice-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
              stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <rect x="2.25" y="2.25" width="11.5" height="11.5" rx="2.5"/><path d="M5 6.25h6M5 9.25h4"/>
@@ -124,8 +152,9 @@
           <p class="notice-label">Good to know</p>
           <p class="notice-body">
             Choose the folder, not the photos. Unzip what Google sent you, then pick the
-            whole Takeout folder &mdash; the .json files inside it are where your dates are.
-            A mix of file types is fine: this fixes the JPEGs and leaves everything else alone.
+            whole Takeout folder &mdash; the .json files inside it are where Google put
+            anything your photos are missing. A mix of file types is fine: everything comes
+            back correctly dated, and only JPEGs are ever written to.
           </p>
           <p class="notice-body">
             If Google gave you multiple zip files, unzip all of them into the SAME folder
@@ -134,6 +163,16 @@
           </p>
         </div>
       </div>
+
+      <!-- Named here rather than only in the collapsed limitations section. If
+           somebody needs a thing this tool does not do, the useful moment to say
+           so is before they run it, not after. -->
+      <p class="help-text">
+        Need your album structure rebuilt, or heavier processing than this?
+        <a href="https://github.com/Xentraxx/GooglePhotosTakeoutHelper_Neo"
+        target="_blank" rel="noopener noreferrer">GooglePhotosTakeoutHelper Neo</a> is
+        free, actively maintained, and does all of that. It's a desktop program you install.
+      </p>
     </section>
 
 
@@ -174,16 +213,16 @@
 
         <div class="tallies">
           <div class="tally tally-success">
-            <span class="tally-label">Fixed</span>
-            <span class="tally-value" id="tallyFixed">0</span>
+            <span class="tally-label">Already dated</span>
+            <span class="tally-value" id="tallyHaveDate">0</span>
           </div>
           <div class="tally tally-notice">
-            <span class="tally-label">Can't be fixed</span>
-            <span class="tally-value" id="tallyCannot">0</span>
+            <span class="tally-label">Date from Google</span>
+            <span class="tally-value" id="tallyNeedDate">0</span>
           </div>
           <div class="tally tally-warning">
-            <span class="tally-label">No metadata</span>
-            <span class="tally-value" id="tallyNoMeta">0</span>
+            <span class="tally-label">No date anywhere</span>
+            <span class="tally-value" id="tallyNoDate">0</span>
           </div>
         </div>
 
@@ -217,6 +256,19 @@
 
       <div class="tiles" id="tiles"></div>
 
+      <!-- The sentence that tells the truth about how little usually needs
+           doing. Most photos come out of Takeout with their dates already
+           inside them, and this is where that is said out loud, in numbers,
+           before anybody decides whether to bother. -->
+      <p class="scan-summary" id="scanSummary"></p>
+
+      <!-- The upload-batch warning. When a photo has no date of its own, the
+           only date available is Google's record of when it arrived - and when
+           a group of them share timestamps seconds apart, that is one upload,
+           not a set of capture times. No other tool says this, so it is a
+           notice on the screen rather than a line in a report. -->
+      <div id="clusterNotice"></div>
+
       <!-- The order below is deliberate: the notice is read BEFORE the user
            decides whether to go looking through the table. -->
       <div id="resultsNotices"></div>
@@ -232,12 +284,47 @@
         <div>
           <p class="notice-label">Good to know</p>
           <p class="notice-body timezone-note">
-            Dates are converted to the timezone of the place the photo was taken, worked out
-            from its GPS location. Daylight saving is taken into account. Photos with no GPS
-            location in their sidecar are written in UTC, exactly as Google stored them.
-            Your computer's own timezone is never used.
+            A date already inside a photo is used exactly as the camera recorded it &mdash;
+            nothing is converted. A date taken from Google's sidecar is converted to the
+            timezone of the place the photo was taken, worked out from the GPS in that
+            sidecar, with daylight saving taken into account; if the sidecar has no
+            location, it is written in UTC exactly as Google stored it. Your computer's own
+            timezone is never used to decide when a photo was taken.
           </p>
         </div>
+      </div>
+
+      <!-- Sits directly above the download button, because it changes what that
+           button does. On by default: filling a gap is a repair, overwriting a
+           camera's own reading is a change nobody asked for. -->
+      <div class="option-row">
+        <input type="checkbox" id="onlyMissing" checked>
+        <label for="onlyMissing">
+          Only write to photos that are missing data
+          <span class="option-help">
+            On, a photo that already has its own date and location is copied
+            through untouched. Off, Google's sidecar overwrites both &mdash; which is
+            what you want if you corrected a date or a place inside Google Photos,
+            because those edits only exist in the sidecar.
+          </span>
+        </label>
+      </div>
+
+      <!-- Off by default, and that default is the point. A date that exists only
+           in Google's sidecar is when the photo ARRIVED, not when it was taken.
+           Writing it into DateTimeOriginal makes a guess look like a recovered
+           fact forever afterwards. -->
+      <div class="option-row">
+        <input type="checkbox" id="googleDates">
+        <label for="googleDates">
+          Also write dates that came from Google's record, not the photo
+          <span class="option-help">
+            For photos with no date inside them, Google's only date is when the photo
+            entered your library &mdash; often the day you uploaded a batch of much older
+            pictures. Leave this off and those photos still get the right date on the
+            file; nothing unproven is written inside them.
+          </span>
+        </label>
       </div>
 
       <div class="actions">
@@ -291,8 +378,16 @@
               <tr>
                 <th class="col-status">Status</th>
                 <th class="col-file">File</th>
+                <!-- Read out of the photo itself before anything is written.
+                     These two columns are how you can see that most of a normal
+                     library never needed this tool. -->
+                <th class="col-yesno">Already has date</th>
+                <th class="col-yesno">Already has GPS</th>
+                <!-- The most important column on the page. "from the photo" is a
+                     fact; "Google's record" is when Google first saw the file. -->
+                <th class="col-source">Date source</th>
                 <th class="col-date">Date found</th>
-                <th class="col-date">Date written</th>
+                <th class="col-date">Written inside</th>
               </tr>
             </thead>
             <tbody id="resultsBody"></tbody>
@@ -317,28 +412,65 @@
         </summary>
         <div class="explain-body">
           <p>
-            Every photo file has a hidden section inside it — the EXIF data — that stores
-            when the picture was taken and where you were standing. It's how your phone
-            builds a timeline and how "photos from Paris" search works.
+            Two different dates get confused here. A photo file has a hidden section inside
+            it — the EXIF data — recording when the picture was taken and where you were
+            standing. Separately, the file itself has a "date modified" that your computer
+            keeps, and those are not the same field.
           </p>
           <p>
-            When Google exports your library, it doesn't leave that information inside the
-            photos. It pulls the date and location out and writes them into separate .json
-            files sitting next to each image.
+            Unzipping stamps every file it extracts with the moment it was extracted. That
+            is what you're looking at. The modified date says today, Finder and Explorer sort
+            by it, and twenty years of birthdays and ordinary Tuesdays collapse into one day.
+            The EXIF inside your photos is almost always still there, untouched.
           </p>
           <p>
-            The photos themselves come out blank. Every app you open them in — Apple Photos,
-            Lightroom, Windows Explorer, your Mac's Finder — asks the file when it was taken,
-            gets no answer, and falls back to the day you downloaded it.
+            Google does not strip the EXIF out of a photo that had it. Measuring a real
+            65-file export: 35 of the 45 JPEGs came out with their capture date still
+            embedded, and all 7 files named .HEIC kept both date and location. What the
+            .json sidecars are genuinely the only copy of is narrower, and it matters:
+          </p>
+          <ul>
+            <li>
+              Photos that never had EXIF at all — screenshots, images saved out of WhatsApp
+              or Messenger, scans, downloads, anything shared into your library.
+            </li>
+            <li>
+              Any date, time, timezone or location you edited inside Google Photos. Those
+              corrections were never written back into the file.
+            </li>
+          </ul>
+          <p>
+            So Save the Dates does two things. Every file in your download gets its real date
+            as the file's modified date, so the whole library lands correctly the moment you
+            unzip — HEIC, RAW and video included, without a byte inside them being touched.
+            And for the JPEGs that are genuinely missing something, it fills that in from the
+            sidecar. It shows you which is which, one row per file, before it writes anything.
+          </p>
+        </div>
+      </details>
+
+      <details>
+        <summary>
+          <span class="chevron" aria-hidden="true"></span>
+          <h2>Why some dates are marked "Google's record"</h2>
+        </summary>
+        <div class="explain-body">
+          <p>
+            When a photo has no date inside it, Google's sidecar still offers one. It is
+            tempting to treat that as the recovered capture date. It usually isn't. For
+            anything uploaded or shared into your library rather than shot on the device,
+            that timestamp is when Google first saw the photo.
           </p>
           <p>
-            The result: twenty years of birthdays, holidays and ordinary Tuesdays all
-            collapse into a single day. The information isn't lost. It's just sitting in the
-            wrong file.
+            The giveaway is clustering. In a real export, ten date-less photos had sidecar
+            timestamps spanning sixteen seconds in total. Ten photos taken across different
+            years do not arrive sixteen seconds apart — that is one upload, recorded once.
           </p>
           <p>
-            Save the Dates reads those .json files and writes the dates and coordinates back
-            inside your photos, where every other app can find them.
+            Save the Dates labels every date with where it came from, flags groups that look
+            like an upload batch, and leaves those dates out of your photos unless you
+            explicitly ask for them. They still get the right date on the outside of the
+            file, so your library sorts sensibly. What's written inside stays honest.
           </p>
         </div>
       </details>
@@ -463,7 +595,8 @@
             <div>
               <p class="notice-body">
                 Don't delete the .json files. They look like junk. They are not junk — they
-                are where Google put your dates and locations, and this tool needs them.
+                are where Google put anything your photos don't already carry, and this tool
+                reads them.
               </p>
             </div>
           </div>
@@ -518,10 +651,16 @@
         <div class="explain-body">
           <ul>
             <li>
-              JPEG only. HEIC, PNG and video aren't handled yet — but you don't have to
-              separate them out. Point Save the Dates at the whole folder: it fixes the
-              JPEGs, lists everything else so you can see what was left, and doesn't touch
-              those files.
+              Only JPEGs are ever written to. HEIC, RAW and video go into your download
+              with the right date on them, but nothing inside them is changed — and in
+              testing they didn't need it: all 7 files named .HEIC in a real export came
+              out of Takeout with their date and location already intact. There is nothing
+              there to repair, so this tool doesn't pretend to.
+            </li>
+            <li>
+              Dates that exist only in Google's sidecar are not written into your photos
+              unless you tick the box asking for it. They are frequently the moment the
+              photo entered your library, not when it was taken.
             </li>
             <li>You have to unzip first. It reads folders, not .zip files.</li>
             <li>
@@ -538,8 +677,12 @@
             </li>
           </ul>
           <p>
-            If you need HEIC, video, or a 200 GB library handled in one pass, there are paid
-            desktop apps that do it well. This is the free option for the common case.
+            If you need your album structure rebuilt, Live Photos paired back up, or a 200 GB
+            library handled in one pass, use
+            <a href="https://github.com/Xentraxx/GooglePhotosTakeoutHelper_Neo"
+               target="_blank" rel="noopener noreferrer">GooglePhotosTakeoutHelper Neo</a>.
+            It's free, actively maintained, and handles all of it. It's a desktop program you
+            install; this is the browser option for the common case.
           </p>
         </div>
       </details>
@@ -569,7 +712,11 @@
             <dd>No. Save the Dates is a web page. Google Takeout is a website too, so neither step needs an install.</dd>
 
             <dt>Does Save the Dates work on my phone?</dt>
-            <dd>Not well. You need to pick a folder, which phone browsers don't really do. Use a computer.</dd>
+            <dd>
+              No. Choosing a whole folder isn't something phone browsers can do, so on a
+              phone the tool says so rather than letting you start something that would
+              fail. Use a desktop or laptop.
+            </dd>
 
             <dt>Will Save the Dates change my original photos?</dt>
             <dd>
@@ -579,10 +726,10 @@
 
             <dt>My export is a mix of JPEGs, HEICs and videos. Do I have to sort them first?</dt>
             <dd>
-              No — point Save the Dates at the whole Google Takeout folder. It fixes the
-              JPEGs, and every other file is listed on screen and in the report as "can't be
-              fixed" so you can see exactly what was left out. Those files aren't moved,
-              changed or deleted; they simply aren't in the download.
+              No — point Save the Dates at the whole Google Takeout folder. Everything comes
+              back in the download with the correct date on it. Only JPEGs that are missing
+              something get written to; the HEICs, RAW files and videos are copied through
+              byte for byte, and the screen tells you which is which.
             </dd>
 
             <dt>Can I delete Google's .json files afterward?</dt>
@@ -591,12 +738,14 @@
               Google Takeout's metadata files, not part of your photos.
             </dd>
 
-            <dt>Why does Save the Dates say some photos are unmatched?</dt>
+            <dt>Why do some files say "No date anywhere"?</dt>
             <dd>
-              Google Takeout's file naming is inconsistent — it truncates long filenames and
-              renames duplicates in ways that don't always line up with the photo they belong
-              to. Save the Dates lists every unmatched photo so you can see exactly which
-              ones need attention, rather than silently skipping them.
+              Because there was no date inside the file and no usable one in a sidecar
+              either. Often the sidecar simply couldn't be matched: Google Takeout's file
+              naming is inconsistent — it truncates long filenames and renames duplicates in
+              ways that don't always line up with the photo they belong to. Those files are
+              still in your download, keeping the date they already had. The preview report
+              has a "sidecar filename used" column so you can see which ones found no match.
             </dd>
 
             <dt>What about photos I edited in Google Photos?</dt>
