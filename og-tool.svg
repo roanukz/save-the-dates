@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Share card for the TEARDOWN page. og-tool.svg is the tool's card, which
-  drops the kicker and leads with the promise instead. The coordinate space
-  is 1200x627 (the Open Graph
-  large-summary ratio) and og-image.png is rendered from it at 2x, 2400x1254,
+  Share card for the TOOL page. og-image.svg is the teardown's card, which
+  adds a kicker and leads with the essay's hook instead. The coordinate space
+  is 1200x627 (the Open Graph large-summary ratio) and og-tool.png is
+  rendered from it at 2x, 2400x1254,
   because a 1x asset gets scaled up on high-DPI screens and softens.
   Edit here, not there - see the README for the render command.
 
@@ -52,21 +52,17 @@
 
   <!-- ============ name and promise ============ -->
 
-  <text x="600" y="370" text-anchor="middle"
-        font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
-        font-size="21" font-weight="700" letter-spacing="3.4" fill="#4c9bb0">PRODUCT TEARDOWN</text>
-
-  <text x="600" y="440" text-anchor="middle"
+  <text x="600" y="420" text-anchor="middle"
         font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
         font-size="62" font-weight="700" fill="#f7f8f9">Save the Dates</text>
 
-  <rect x="545" y="466" width="110" height="5" rx="2.5" fill="#4c9bb0"/>
+  <rect x="545" y="442" width="110" height="5" rx="2.5" fill="#4c9bb0"/>
 
-  <text x="600" y="518" text-anchor="middle"
+  <text x="600" y="500" text-anchor="middle"
         font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
-        font-size="25" font-weight="400" fill="#c8ced7">The problem, the evidence, and the</text>
-  <text x="600" y="554" text-anchor="middle"
+        font-size="26" font-weight="400" fill="#c8ced7">Fix wrong dates &amp; timezones</text>
+  <text x="600" y="538" text-anchor="middle"
         font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
-        font-size="25" font-weight="400" fill="#c8ced7">measurement that proved me wrong</text>
+        font-size="26" font-weight="400" fill="#c8ced7">on your photos, right in your browser</text>
 
 </svg>
