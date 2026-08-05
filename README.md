@@ -79,16 +79,22 @@ These are deliberate and are not up for quiet erosion:
 | `contrast-check.html` | Recomputes every contrast ratio in the system, in the browser |
 | `teardown.html` | The product teardown, styled from `tokens.css` unchanged |
 | `og-image.svg` | Source for the social share card — edit this one |
-| `og-image.png` | The rendered 1200×627 share card, committed so nothing has to build |
+| `og-image.png` | The rendered share card, committed so nothing has to build |
 | `test-fixtures/` | Sidecar-naming cases |
 
 The share card is committed as a PNG so serving the site still needs no build
-step. To regenerate it after editing the SVG:
+step. It is rendered at **2400×1254** — twice the 1200×627 Open Graph size —
+because a 1× asset is scaled up on high-DPI screens and visibly softens. The
+`og:image:width` / `og:image:height` tags must match whatever is committed.
+
+To regenerate it after editing the SVG, render at 4× and downsample. LibreOffice's
+own rasteriser is adequate, but supersampling gives noticeably cleaner edges:
 
 ```
 soffice --headless \
-  --convert-to 'png:draw_png_Export:{"PixelWidth":{"type":"long","value":1200},"PixelHeight":{"type":"long","value":627}}' \
+  --convert-to 'png:draw_png_Export:{"PixelWidth":{"type":"long","value":4800},"PixelHeight":{"type":"long","value":2508}}' \
   og-image.svg
+sips -z 1254 2400 og-image.png --out og-image.png
 ```
 
 ## Testing

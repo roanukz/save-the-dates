@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Social share card. 1200x627, the Open Graph / Twitter large-summary size.
-  og-image.png is rendered from this file; edit here, not there.
+  Social share card. The coordinate space is 1200x627, the Open Graph /
+  Twitter large-summary size, but og-image.png is rendered at 2x (2400x1254)
+  because a 1x asset gets scaled up on high-DPI screens and visibly softens.
+  Edit here, not there - see the README for the render command.
 
   Colours are the role values from tokens.css dark mode, copied literally
   because an SVG cannot read a stylesheet. If a ramp changes, change it here.
