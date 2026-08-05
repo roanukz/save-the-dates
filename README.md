@@ -1,10 +1,9 @@
 # Save the Dates
 
-Google Photos gave your memories back. It kept the *when* and the *where*.
+Your Takeout export lands with every file stamped today. This puts the real dates back.
 
-A single-page browser tool that repairs Google Photos Takeout exports by reading the
-JSON sidecar files and writing the original capture date and GPS position back into
-the JPEG's EXIF.
+A single-page browser tool that gives every file in a Google Photos Takeout export its
+real capture date, and fills in the EXIF of the JPEGs that are genuinely missing one.
 
 **[Read the product teardown →](https://roanukz.github.io/save-the-dates/)**  ·  **[Try it live →](https://roanukz.github.io/save-the-dates/tool.html)**
 
@@ -25,22 +24,24 @@ That is what you see in Finder and Explorer, it is what a lot of import tools so
 twenty years of birthdays collapse into a single day. The EXIF inside most of those photos
 is untouched.
 
-Measured on a real 65-file export spanning 2013–2024: 35 of 45 JPEGs still had their
-`DateTimeOriginal` embedded, and all 7 HEIC files came out with date *and* GPS intact.
-Google copies metadata into the `.json` sidecars; it does not move it out of the files.
+Measured on a real 65-file export spanning 2013 to 2024: 35 of 45 JPEGs still had their
+`DateTimeOriginal` embedded, and all 7 files named `.HEIC` came out with date *and* GPS
+intact. Google copies metadata into the `.json` sidecars; it does not move it out of the
+files.
 
 The sidecar is genuinely the only copy for two things: photos that never had EXIF at all
 (screenshots, images shared in from messaging apps, scans), and any date or location you
 edited inside Google Photos, which is never written back into the file.
 
-So this tool puts the right date on every file in your download — JPEG, HEIC, RAW and video
-alike — and only writes inside the JPEGs that are actually missing something.
+So this tool puts the right date on every file in your download, whether JPEG, HEIC, RAW
+or video, and only writes inside the JPEGs that are actually missing something.
 
-> **Correction, 5 August 2026.** This README previously said Takeout "pulls the date and
-> location out" of your photos and that apps "get no answer" from the file. That was wrong.
-> Measuring my own export is what corrected it. The tool now reads each file's existing
-> metadata before writing anything, and reports per file whether it needed the tool at all.
-> See the [teardown](https://roanukz.github.io/save-the-dates/) for the full correction.
+One thing it deliberately will not do: when a photo has no date of its own, Google's
+sidecar still offers one, and that value is usually the moment the photo entered the
+library rather than when it was taken. In the measured export, 10 such photos carried
+timestamps spanning 16 seconds in total. The tool labels where every date came from,
+flags that upload-batch pattern, and leaves those dates out of the file unless you ask
+for them.
 
 ## Running it
 
@@ -49,15 +50,26 @@ this repository and open `tool.html` in a browser. That is the whole install.
 
 There is no server, no build step and no package manager. The three libraries in
 `vendor/` are committed to this repository and loaded from disk, so the page works with
-the network off — which is also the easiest way to verify the privacy claim.
+the network off, which is also the easiest way to verify the privacy claim.
 
 ## What it does
 
+- **Stamps every file in the output with its real capture date**, so the library lands
+  correctly the moment you unzip it. In order of trust: the file's own
+  `DateTimeOriginal`, then its Live Photo partner's, then the sidecar, then the file's
+  original modified date. Never "now".
+- Reads existing metadata from JPEG, HEIC, RAW and PNG before writing anything, and
+  reports per file whether it needed the tool at all. Formats are identified by their
+  bytes, never by their filename.
 - Matches each photo to its sidecar. Google's naming is inconsistent: it truncates long
   names at 46 characters, moves duplicate counters around, and ships two different sidecar
   formats in the same export. All of that guesswork lives in one function,
   `findSidecarFor()`.
-- Writes `DateTimeOriginal`, `DateTimeDigitized`, `DateTime` and GPS coordinates.
+- Writes `DateTimeOriginal`, `DateTimeDigitized`, `DateTime` and GPS coordinates into the
+  JPEGs that are genuinely missing them, and leaves the rest alone.
+- **Labels where every date came from**, and detects upload batches: several date-less
+  photos sharing a sidecar timestamp within seconds is one upload, not several capture
+  times. Those dates stay out of the file unless you ask for them.
 - **Derives the timezone from the photo's GPS position**, not from the machine running the
   tool. A photo taken at 3pm in London reads 3pm whether you run this at home or abroad.
   Daylight saving is resolved for the actual date via `Intl`. Photos with no GPS fall back
@@ -72,9 +84,11 @@ the network off — which is also the easiest way to verify the privacy claim.
 
 ## Scope
 
-JPEG only. HEIC, PNG and video are counted, listed and left strictly alone — you do not
-have to sort a mixed folder before using this. Nothing is ever written to your originals;
-you get a new copy as a download.
+Only JPEGs are written to. HEIC, RAW and video are copied through untouched and correctly
+dated, so you do not have to sort a mixed folder before using this. Measurement is the
+reason: those formats came out of Takeout with their metadata already intact, so there is
+nothing in them to repair. Nothing is ever written to your originals; you get a new copy
+as a download.
 
 ## Constraints
 
@@ -89,20 +103,20 @@ These are deliberate and are not up for quiet erosion:
 
 | Path | What it is |
 |---|---|
-| `index.html` | The product teardown — the site's front door, styled from `tokens.css` unchanged |
+| `index.html` | The product teardown, the site's front door, styled from `tokens.css` unchanged |
 | `tool.html` | The entire UI |
-| `app.js` | All logic — matching, sidecar parsing, timezone resolution, EXIF writing, reports |
+| `app.js` | All logic: matching, sidecar parsing, timezone resolution, EXIF writing, reports |
 | `style.css` | Components |
 | `tokens.css` | The design system's raw values; portable, nothing app-specific |
 | `DESIGN.md`, `design/` | The reasoning behind the design system |
 | `contrast-check.html` | Recomputes every contrast ratio in the system, in the browser |
-| `teardown.html` | Redirect to `/` — the teardown's old URL is printed on a CV already in circulation |
-| `og-image.svg` | Source for the social share card — edit this one |
+| `teardown.html` | Redirect to `/`, because the teardown's old URL is printed on a CV already in circulation |
+| `og-image.svg` | Source for the social share card, edit this one |
 | `og-image.png` | The rendered share card, committed so nothing has to build |
 | `test-fixtures/` | Sidecar-naming cases |
 
 The share card is committed as a PNG so serving the site still needs no build
-step. It is rendered at **2400×1254** — twice the 1200×627 Open Graph size —
+step. It is rendered at **2400 by 1254**, twice the 1200 by 627 Open Graph size,
 because a 1× asset is scaled up on high-DPI screens and visibly softens. The
 `og:image:width` / `og:image:height` tags must match whatever is committed.
 
@@ -124,7 +138,7 @@ test export is personal data. Point the tool at a folder outside this repository
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE).
 
 The three libraries in `vendor/` are third-party and keep their own licences:
 
@@ -132,7 +146,7 @@ The three libraries in `vendor/` are third-party and keep their own licences:
 |---|---|---|
 | `piexif.js` | `piexifjs@1.0.6` | MIT |
 | `jszip.min.js` | `jszip@3.10.1` | MIT or GPLv3 |
-| `tz-lookup.js` | `tz-lookup@6.1.25` | see upstream — the minified copy carries no header |
+| `tz-lookup.js` | `tz-lookup@6.1.25` | see upstream, the minified copy carries no header |
 
 ## Trademarks
 
