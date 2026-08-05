@@ -92,10 +92,9 @@ h2 {
   cursor: pointer;
 }
 
-/* A .btn can be an <a> as well as a <button> now that the hero carries links.
-   Without this the global underline on links turns a button into an underlined
-   button, which reads as neither one thing nor the other. */
-a.btn, a.btn:hover { text-decoration: none; }
+/* A .btn is always a <button> in this page. If one is ever made an <a>, add
+   text-decoration: none, or the global link underline turns it into an
+   underlined button. */
 
 /* One focus ring on every control type in the system. :focus-visible only,
    so it appears for keyboards and not for mouse clicks. Never removed. */
@@ -891,17 +890,35 @@ td.col-date { text-align: right; color: var(--text-body); }
   font-size: var(--size-13); line-height: var(--lh-13);
   letter-spacing: var(--ls-13);
   color: var(--text-muted);
-  margin: 0 0 var(--space-16);
+  margin: 0 0 var(--space-32);
 }
 
-/* The same call-to-action pair the teardown carries, so a reader arriving on
-   either page of this project finds the other one in the same place. Matches
-   the teardown's .cta-row rule exactly; both files style it from tokens. */
-.cta-row {
+/* --- The site header ------------------------------------------------------
+   The same bar the teardown carries, so a reader arriving on either page of
+   this project finds the way to the other one in the same place. Sticky, and
+   therefore opaque: the results table scrolls underneath it.
+
+   It sits OUTSIDE .page so its rule spans the full width of the window, with
+   its own inner wrapper repeating .page's measure so the links line up with
+   the content below them. */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--page-bg);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--size-13);
+  line-height: var(--lh-13);
+  letter-spacing: var(--ls-13);
+}
+
+.topbar-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-12) var(--space-24);
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-12);
-  margin: 0 0 var(--space-32);
+  gap: var(--space-16);
+  justify-content: flex-end;
 }
 
 /* The folder input needs a visible label attached to it, and a <label> is

@@ -102,6 +102,35 @@ strong { color: var(--text-heading); font-weight: 600; }
   .layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: var(--space-48); align-items: start; }
 }
 
+/* --- Site header ----------------------------------------------------------
+   Sticky, so the links out stay reachable from anywhere in a long essay. It
+   needs an opaque background because content scrolls underneath it, and the
+   page must know its height: the contents rail and every anchored section have
+   to clear it, or a jump lands with its heading hidden behind the bar. */
+
+/* Measured, not guessed: 12px padding each side of a 13px/1.4 line, plus the
+   1px rule. If the bar's padding or type size changes, remeasure this. */
+:root { --topbar-h: 44px; }
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--page-bg);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--size-13);
+  line-height: var(--lh-13);
+  letter-spacing: var(--ls-13);
+}
+
+.topbar .wrap {
+  display: flex;
+  gap: var(--space-16);
+  justify-content: flex-end;
+  padding-top: var(--space-12);
+  padding-bottom: var(--space-12);
+}
+
 /* --- Hero ----------------------------------------------------------------- */
 
 .hero { border-bottom: 1px solid var(--border-subtle); padding: var(--space-64) 0 var(--space-48); }
@@ -165,7 +194,8 @@ strong { color: var(--text-heading); font-weight: 600; }
 .toc a { color: var(--link); }
 
 @media (min-width: 1000px) {
-  .toc { display: block; position: sticky; top: var(--space-32); padding-top: var(--space-64); }
+  /* Clears the sticky site header, or the rail slides underneath it. */
+  .toc { display: block; position: sticky; top: calc(var(--topbar-h) + var(--space-32)); padding-top: var(--space-64); }
   .toc ol { border-left: 1px solid var(--border-subtle); }
   .toc li { margin: 0; }
   .toc a {
@@ -180,7 +210,9 @@ strong { color: var(--text-heading); font-weight: 600; }
 /* --- Sections ------------------------------------------------------------- */
 
 main { padding-bottom: var(--space-96); }
-section { padding-top: var(--space-64); scroll-margin-top: var(--space-24); }
+/* The scroll margin has to clear the sticky header too, or following a link
+   from the contents leaves that section's heading hidden behind the bar. */
+section { padding-top: var(--space-64); scroll-margin-top: calc(var(--topbar-h) + var(--space-24)); }
 section > h2 { max-width: var(--measure-25); }
 .section-kicker {
   font-size: var(--size-13); line-height: var(--lh-13); letter-spacing: 0.08em; text-transform: uppercase;
@@ -289,6 +321,17 @@ footer a { color: var(--link); }
 <body>
 
 <a class="skip" href="#main">Skip to content</a>
+
+<!-- The site header. Frozen to the top of the viewport, because on a page this
+     long the way out to the tool should never be more than a glance away. Small
+     and right-aligned on purpose: this is wayfinding, and the hero's own buttons
+     are where the emphasis belongs. -->
+<nav class="topbar" aria-label="Site">
+  <div class="wrap">
+    <a href="tool.html">Try the tool &rarr;</a>
+    <a href="https://github.com/Roanukz/save-the-dates">View source</a>
+  </div>
+</nav>
 
 <header class="hero">
   <div class="wrap">
