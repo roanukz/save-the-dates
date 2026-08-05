@@ -6,6 +6,11 @@ A single-page browser tool that repairs Google Photos Takeout exports by reading
 JSON sidecar files and writing the original capture date and GPS position back into
 the JPEG's EXIF.
 
+**[Try it live →](https://roanukz.github.io/save-the-dates/)**  ·  **[Read the product teardown →](https://roanukz.github.io/save-the-dates/teardown.html)**
+
+The teardown covers the problem, the evidence that it is real and recurring, the
+decisions I committed to and what each one cost, and what I would kill.
+
 ## The problem
 
 Every photo file has a hidden EXIF section storing when the picture was taken and where
@@ -21,7 +26,8 @@ This puts it back.
 
 ## Running it
 
-Open `index.html` in a browser. That is the whole install.
+Open [the hosted version](https://roanukz.github.io/save-the-dates/), or download this
+repository and open `index.html` in a browser. That is the whole install.
 
 There is no server, no build step and no package manager. The three libraries in
 `vendor/` are committed to this repository and loaded from disk, so the page works with
