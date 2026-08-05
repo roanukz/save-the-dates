@@ -1,641 +1,645 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Save the Dates — Product Teardown</title>
+<meta name="description" content="A product teardown of Save the Dates: the problem, the evidence it is real, the decisions I committed to, and what I would kill.">
 
-  <title>Save the Dates — Fix Google Photos Takeout Dates | Free, No Install</title>
-  <meta name="description" content="Your Google Takeout photos all show today's date. Save the Dates puts the real capture dates and locations back into your photo files. Free, runs in your browser, nothing uploaded, no file limit.">
+<!-- Share card. Same image and treatment as index.html, but title, description
+     and og:url describe THIS page - og:url is a canonical hint, so pointing it
+     at the site root would make shared teardown links resolve to the tool. -->
+<meta property="og:title" content="Save the Dates - Product Teardown">
+<meta property="og:description" content="The product thinking behind a free, browser-based tool that fixes wrong dates and timezones on photo libraries: the problem, the evidence, the decisions I committed to, and what I would kill.">
+<meta property="og:image" content="https://roanukz.github.io/save-the-dates/og-image.png?v=4">
+<meta property="og:image:width" content="2400">
+<meta property="og:image:height" content="1254">
+<meta property="og:url" content="https://roanukz.github.io/save-the-dates/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
 
-  <!-- Share card. og-image.png is rendered from og-image.svg; edit the SVG. -->
-  <meta property="og:title" content="Save the Dates - Photo Date &amp; Timezone Repair">
-  <meta property="og:description" content="Free, browser-based tool that fixes wrong dates and timezones on photo libraries. No install, no account, no upload - files never leave your device.">
-  <meta property="og:image" content="https://roanukz.github.io/save-the-dates/og-image.png?v=4">
-  <meta property="og:image:width" content="2400">
-  <meta property="og:image:height" content="1254">
-  <meta property="og:url" content="https://roanukz.github.io/save-the-dates">
-  <meta property="og:type" content="website">
-  <meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="tokens.css">
+<style>
+/* ===========================================================================
+   Teardown page. Uses tokens.css unchanged — this page is itself the proof
+   that the token file is portable, which is one of the claims it makes.
+   Nothing here reaches for a raw ramp value; role tokens only, so dark mode
+   keeps working for free.
+   =========================================================================== */
 
-  <!-- Both stylesheets are local files. Nothing is fetched from the internet. -->
-  <link rel="stylesheet" href="tokens.css">
-  <link rel="stylesheet" href="style.css">
+/* Two roles this page needs that the core system does not define. tokens.css
+   is explicit that components must never reach into the raw ramps, so they are
+   mapped here once, in both schemes, and used by role below. Accent is not
+   touched at all — that ramp is reserved for measurement. */
+:root {
+  --kicker-text: var(--primary-600);   /* section eyebrows */
+  --marker:      var(--primary-500);   /* list markers, decision rule */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --kicker-text: var(--primary-300);
+    --marker:      var(--primary-400);
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--page-bg);
+  color: var(--text-body);
+  font-family: var(--font-sans);
+  font-size: var(--size-16);
+  line-height: var(--lh-16);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 { color: var(--text-heading); margin: 0; }
+h1 { font-size: var(--size-39); line-height: var(--lh-39); letter-spacing: var(--ls-39); font-weight: var(--w-39); }
+h2 { font-size: var(--size-31); line-height: var(--lh-31); letter-spacing: var(--ls-31); font-weight: var(--w-31); }
+h3 { font-size: var(--size-20); line-height: var(--lh-20); letter-spacing: var(--ls-20); font-weight: var(--w-20); }
+h4 { font-size: var(--size-16); line-height: var(--lh-16); font-weight: 600; }
+
+p { margin: 0 0 var(--space-16); max-width: var(--measure-16); }
+a { color: var(--link); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { color: var(--link-hover); }
+code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--surface-sunken);
+  padding: 1px var(--space-4);
+  border-radius: var(--radius);
+}
+strong { color: var(--text-heading); font-weight: 600; }
+
+:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius); }
+
+.skip {
+  position: absolute; left: -9999px;
+  background: var(--fill); color: var(--on-fill);
+  padding: var(--space-12) var(--space-16); border-radius: var(--radius); z-index: 100;
+}
+.skip:focus { left: var(--space-16); top: var(--space-16); }
+
+/* --- Shell ---------------------------------------------------------------- */
+
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 var(--space-24); }
+
+.layout { display: block; }
+@media (min-width: 1000px) {
+  .layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: var(--space-48); align-items: start; }
+}
+
+/* --- Hero ----------------------------------------------------------------- */
+
+.hero { border-bottom: 1px solid var(--border-subtle); padding: var(--space-64) 0 var(--space-48); }
+
+.eyebrow {
+  font-size: var(--size-13); line-height: var(--lh-13); letter-spacing: 0.08em;
+  text-transform: uppercase; font-weight: 600; color: var(--kicker-text); margin: 0 0 var(--space-12);
+}
+
+.hero h1 { max-width: 16ch; }
+.lede {
+  font-size: var(--size-20); line-height: var(--lh-20); letter-spacing: var(--ls-20);
+  color: var(--text-body); max-width: var(--measure-20); margin: var(--space-16) 0 var(--space-24);
+}
+.byline { font-size: var(--size-13); line-height: var(--lh-13); color: var(--text-muted); margin: 0 0 var(--space-24); }
+
+.cta-row { display: flex; flex-wrap: wrap; gap: var(--space-12); margin-top: var(--space-24); }
+.btn {
+  display: inline-flex; align-items: center; gap: var(--space-8);
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--radius); font-size: var(--size-16); font-weight: 500;
+  text-decoration: none; border: 1px solid transparent; transition: background .12s ease, border-color .12s ease;
+}
+.btn-primary { background: var(--fill); color: var(--on-fill); border-color: var(--fill-border); }
+.btn-primary:hover { background: var(--fill-hover); color: var(--on-fill); }
+.btn-secondary { background: var(--surface); color: var(--text-heading); border-color: var(--border-default); }
+.btn-secondary:hover { background: var(--neutral-fill-hover); border-color: var(--border-strong); color: var(--text-heading); }
+
+/* --- Facts strip ---------------------------------------------------------- */
+
+.facts {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--space-12); margin-top: var(--space-48);
+}
+.fact {
+  background: var(--surface); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg); padding: var(--space-16);
+}
+.fact-value {
+  font-size: var(--size-25); line-height: var(--lh-25); letter-spacing: var(--ls-25);
+  font-weight: var(--w-25); color: var(--text-heading); display: block;
+}
+.fact-label { font-size: var(--size-13); line-height: var(--lh-13); color: var(--text-muted); margin-top: var(--space-4); display: block; }
+
+/* --- Nav ------------------------------------------------------------------ */
+
+.toc { display: none; }
+@media (min-width: 1000px) {
+  .toc { display: block; position: sticky; top: var(--space-32); padding-top: var(--space-64); }
+  .toc-title {
+    font-size: var(--size-13); text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 600; color: var(--text-muted); margin: 0 0 var(--space-12);
+  }
+  .toc ol { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--border-subtle); }
+  .toc li { margin: 0; }
+  .toc a {
+    display: block; padding: var(--space-8) var(--space-12);
+    font-size: var(--size-13); line-height: var(--lh-13);
+    color: var(--text-muted); text-decoration: none; border-left: 2px solid transparent; margin-left: -1px;
+  }
+  .toc a:hover { color: var(--text-body); }
+  .toc a.active { color: var(--link); border-left-color: var(--fill); font-weight: 600; }
+}
+
+/* --- Sections ------------------------------------------------------------- */
+
+main { padding-bottom: var(--space-96); }
+section { padding-top: var(--space-64); scroll-margin-top: var(--space-24); }
+section > h2 { max-width: var(--measure-25); }
+.section-kicker {
+  font-size: var(--size-13); line-height: var(--lh-13); letter-spacing: 0.08em; text-transform: uppercase;
+  font-weight: 600; color: var(--text-muted); margin: 0 0 var(--space-8);
+}
+section > h2 + p { margin-top: var(--space-16); }
+
+ul, ol { max-width: var(--measure-16); padding-left: var(--space-24); }
+li { margin-bottom: var(--space-8); }
+
+/* --- Callouts ------------------------------------------------------------- */
+
+.callout {
+  border: 1px solid; border-radius: var(--radius-lg);
+  padding: var(--space-16) var(--space-24); margin: var(--space-24) 0;
+  max-width: var(--measure-16);
+}
+.callout p:last-child { margin-bottom: 0; }
+.callout h4 { margin-bottom: var(--space-8); }
+
+.callout-notice { background: var(--notice-tint); border-color: var(--notice-line); }
+.callout-notice h4 { color: var(--notice-text); }
+.callout-info { background: var(--info-tint); border-color: var(--info-line); }
+.callout-info h4 { color: var(--info-text); }
+.callout-warning { background: var(--warning-tint); border-color: var(--warning-line); }
+.callout-warning h4 { color: var(--warning-text); }
+.callout-success { background: var(--success-tint); border-color: var(--success-line); }
+.callout-success h4 { color: var(--success-text); }
+
+/* --- TL;DR ---------------------------------------------------------------- */
+
+.tldr { margin: var(--space-32) 0 0; }
+.tldr ul { list-style: none; padding: 0; max-width: var(--measure-16); }
+.tldr li {
+  position: relative; padding-left: var(--space-32); margin-bottom: var(--space-16);
+}
+.tldr li::before {
+  content: ""; position: absolute; left: 0; top: 9px;
+  width: 8px; height: 8px; border-radius: 50%; background: var(--marker);
+}
+
+/* --- Decision cards ------------------------------------------------------- */
+
+.decision {
+  background: var(--surface); border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--marker);
+  border-radius: var(--radius-lg); padding: var(--space-24); margin: var(--space-24) 0;
+}
+.decision > h3 { margin-bottom: var(--space-12); }
+.decision > p:last-child { margin-bottom: 0; }
+.decision-num {
+  font-size: var(--size-13); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-muted); display: block; margin-bottom: var(--space-4);
+}
+.tradeoff { list-style: none; padding: 0; margin: var(--space-16) 0 0; max-width: var(--measure-16); }
+.tradeoff li {
+  display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: var(--space-12);
+  padding: var(--space-8) 0; border-top: 1px solid var(--border-subtle); margin: 0;
+}
+.tradeoff dt, .tradeoff .k {
+  font-size: var(--size-13); line-height: var(--lh-16); font-weight: 600;
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;
+}
+
+/* --- Tables --------------------------------------------------------------- */
+
+.table-scroll { overflow-x: auto; margin: var(--space-24) 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: var(--size-13); line-height: var(--lh-16); }
+th, td { text-align: left; padding: var(--space-12) var(--space-16); border-bottom: 1px solid var(--border-subtle); vertical-align: top; }
+thead th {
+  background: var(--surface-sunken); color: var(--text-heading); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em; font-size: var(--size-13); white-space: nowrap;
+}
+tbody tr:last-child td { border-bottom: none; }
+td.num { white-space: nowrap; }
+
+/* --- Evidence list -------------------------------------------------------- */
+
+.evidence { list-style: none; padding: 0; max-width: var(--measure-16); }
+.evidence li { padding: var(--space-12) 0; border-bottom: 1px solid var(--border-subtle); margin: 0; }
+.evidence li:last-child { border-bottom: none; }
+.evidence .src { color: var(--text-heading); font-weight: 600; }
+.evidence .yr { color: var(--text-muted); font-size: var(--size-13); }
+blockquote {
+  margin: var(--space-8) 0 0; padding-left: var(--space-16);
+  border-left: 2px solid var(--border-default); color: var(--text-muted); font-style: italic;
+}
+
+/* --- ERRC grid ------------------------------------------------------------ */
+
+.errc { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-16); margin: var(--space-24) 0; }
+.errc-cell { background: var(--surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: var(--space-16) var(--space-24); }
+.errc-cell h4 { margin-bottom: var(--space-8); }
+.errc-cell ul { padding-left: var(--space-16); margin: 0; font-size: var(--size-13); line-height: var(--lh-16); }
+
+/* --- Footer --------------------------------------------------------------- */
+
+footer {
+  border-top: 1px solid var(--border-subtle); padding: var(--space-32) 0 var(--space-64);
+  font-size: var(--size-13); line-height: var(--lh-16); color: var(--text-muted);
+}
+footer p { max-width: var(--measure-16); }
+footer a { color: var(--link); }
+</style>
 </head>
 <body>
 
-<div class="page">
+<a class="skip" href="#main">Skip to content</a>
 
-  <!-- =====================================================================
-       SECTION 1 - THE HERO
-       ===================================================================== -->
-  <header>
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Product teardown</p>
     <h1>Save the Dates</h1>
+    <p class="lede">Google Photos gave your memories back. It kept the <em>when</em> and the <em>where</em>. This is the product thinking behind a free browser tool that puts them back — the problem, the evidence it is real, the decisions I committed to, and what I would kill.</p>
+    <p class="byline">Roanuk Zaman · Product teardown of a tool I designed, directed and shipped</p>
 
-    <p class="lead">
-      Google Photos gave your memories back. It kept the when and the where.
-    </p>
-
-    <p class="hero-body">
-      Exported your photos out of Google Photos and now every single one says today's
-      date? That's not a bug you caused. Drop your export folder below and get the real
-      dates and locations back.
-    </p>
-
-    <p class="trust">
-      Free forever &middot; Nothing to install &middot; Your photos never leave your computer &middot; No sign-up
-    </p>
-  </header>
-
-
-  <main>
-
-    <!-- ===================================================================
-         SECTION 2 - THE TOOL
-         Directly under the hero, above everything else, so somebody who
-         already knows what they are doing never has to scroll.
-         =================================================================== -->
-
-    <!-- -------------------------------------------------------------------
-         SCREEN 1 - choosing a folder.
-         Three states, told apart by their BORDER as well as their colour, so
-         they still read with the colour removed.
-         ------------------------------------------------------------------- -->
-    <section id="phaseIdle">
-
-      <div id="dropZone" class="dropzone">
-
-        <!-- State: idle -->
-        <div class="dz-state" id="dzIdle">
-          <svg class="dz-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-               stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M1.75 4.75A1.5 1.5 0 0 1 3.25 3.25h2.4l1.3 1.6h5.8a1.5 1.5 0 0 1 1.5 1.5v6.4H1.75Z"/>
-          </svg>
-          <!-- This is the visible label for the folder input below. Clicking it
-               opens the same folder chooser the button does. -->
-          <label class="dz-headline" for="folderPicker">Drag your Takeout folder here</label>
-          <!-- The privacy claim sits ABOVE the button, not in fine print below it. -->
-          <p class="dz-privacy">Nothing is uploaded.</p>
-          <button type="button" class="btn btn-secondary" id="chooseButton">
-            <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-                 stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M1.75 4.75A1.5 1.5 0 0 1 3.25 3.25h2.4l1.3 1.6h5.8a1.5 1.5 0 0 1 1.5 1.5v6.4H1.75Z"/>
-            </svg>
-            Choose folder
-          </button>
-        </div>
-
-        <!-- State: something is being dragged over -->
-        <div class="dz-state" id="dzDragover" hidden>
-          <svg class="dz-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-               stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M1.75 4.75A1.5 1.5 0 0 1 3.25 3.25h2.4l1.3 1.6h5.8a1.5 1.5 0 0 1 1.5 1.5v6.4H1.75Z"/>
-          </svg>
-          <p class="dz-headline">Release to read this folder</p>
-          <p class="dz-sub" id="dzDragName">&nbsp;</p>
-        </div>
-
-        <!-- State: what was dropped cannot be used -->
-        <div class="dz-state" id="dzRejected" hidden>
-          <svg class="dz-icon dz-icon-error" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-               stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="8" cy="8" r="6.25"/><path d="M5.6 5.6l4.8 4.8M10.4 5.6l-4.8 4.8"/>
-          </svg>
-          <p class="dz-headline" id="dzRejectHeadline">That's a .zip file</p>
-          <!-- The reassurance sentence is mandatory. A rejected drop is exactly where
-               an anxious person assumes they have broken something. -->
-          <p class="dz-body" id="dzRejectBody">
-            Unzip it first, then drag the folder that comes out.
-            <strong>Your file wasn't changed.</strong>
-          </p>
-          <p class="dz-filename" id="dzRejectName"></p>
-          <button type="button" class="btn btn-secondary" id="tryAgainButton">Try again</button>
-        </div>
-
-        <!-- The real file input. Hidden, and driven by the label and buttons above. -->
-        <input type="file" id="folderPicker" webkitdirectory multiple hidden>
-      </div>
-
-      <div class="notice">
-        <svg class="icon notice-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="2.25" y="2.25" width="11.5" height="11.5" rx="2.5"/><path d="M5 6.25h6M5 9.25h4"/>
-        </svg>
-        <div>
-          <p class="notice-label">Good to know</p>
-          <p class="notice-body">
-            Choose the folder, not the photos. Unzip what Google sent you, then pick the
-            whole Takeout folder &mdash; the .json files inside it are where your dates are.
-            A mix of file types is fine: this fixes the JPEGs and leaves everything else alone.
-          </p>
-          <p class="notice-body">
-            If Google gave you multiple zip files, unzip all of them into the SAME folder
-            before choosing it. Google splits photos and their metadata across different
-            zips, and both halves have to be in one place.
-          </p>
-        </div>
-      </div>
-    </section>
-
-
-    <!-- -------------------------------------------------------------------
-         SCREEN 2 - the wait.
-         This can run for minutes with no server to blame, so it carries FIVE
-         independent signs of life: the arc, the moving bar, the filename
-         ticker, the elapsed clock, and the three tallies. No single stall can
-         make all five stop, so nothing here can be mistaken for a crash.
-         ------------------------------------------------------------------- -->
-    <section id="phaseWorking" hidden>
-      <div class="card work-card">
-
-        <div class="work-head">
-          <svg class="icon icon-20 arc" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-               stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="8" cy="8" r="6.25" class="arc-track"/>
-            <path d="M8 1.75A6.25 6.25 0 0 1 14.25 8"/>
-          </svg>
-          <h2 id="workHeading">Reading your photos</h2>
-          <!-- Coarse and honest. Never "2:47", and never shown before we have
-               enough files to make an estimate worth trusting. -->
-          <span class="work-eta" id="workEta"></span>
-        </div>
-
-        <p class="work-count"><span id="workCount">0 of 0</span> files</p>
-
-        <div class="bar" role="progressbar" aria-labelledby="workHeading">
-          <div class="bar-fill" id="workBar"></div>
-        </div>
-
-        <div class="ticker">
-          <p class="ticker-label">Now reading</p>
-          <p class="ticker-file" id="tickerFile">&nbsp;</p>
-        </div>
-
-        <p class="work-elapsed" id="workElapsed">0 s elapsed</p>
-
-        <div class="tallies">
-          <div class="tally tally-success">
-            <span class="tally-label">Fixed</span>
-            <span class="tally-value" id="tallyFixed">0</span>
-          </div>
-          <div class="tally tally-notice">
-            <span class="tally-label">Can't be fixed</span>
-            <span class="tally-value" id="tallyCannot">0</span>
-          </div>
-          <div class="tally tally-warning">
-            <span class="tally-label">No metadata</span>
-            <span class="tally-value" id="tallyNoMeta">0</span>
-          </div>
-        </div>
-
-        <div class="notice">
-          <svg class="icon notice-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-               stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="2.25" y="2.25" width="11.5" height="11.5" rx="2.5"/><path d="M5 6.25h6M5 9.25h4"/>
-          </svg>
-          <div>
-            <p class="notice-label">Good to know</p>
-            <p class="notice-body">
-              You can switch to another tab &mdash; this keeps running. Closing the tab
-              stops it, and no file will be half-written.
-            </p>
-          </div>
-        </div>
-
-        <!-- "Cancel" alone would imply losing the work already done. It doesn't. -->
-        <button type="button" class="btn btn-secondary" id="stopButton">Stop</button>
-      </div>
-    </section>
-
-
-    <!-- -------------------------------------------------------------------
-         SCREEN 3 - the answer.
-         Three tiles carry every fact needed to decide what to do. The table of
-         every file is a drill-down, closed by default. Someone who never opens
-         it has been served properly.
-         ------------------------------------------------------------------- -->
-    <section id="phaseDone" hidden>
-
-      <div class="tiles" id="tiles"></div>
-
-      <!-- The order below is deliberate: the notice is read BEFORE the user
-           decides whether to go looking through the table. -->
-      <div id="resultsNotices"></div>
-
-      <!-- The timezone disclosure. This wording is load-bearing and is also read
-           straight out of this element by the CSV report, so the report and the
-           screen can never drift apart. Do not reword it. -->
-      <div class="notice">
-        <svg class="icon notice-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="2.25" y="2.25" width="11.5" height="11.5" rx="2.5"/><path d="M5 6.25h6M5 9.25h4"/>
-        </svg>
-        <div>
-          <p class="notice-label">Good to know</p>
-          <p class="notice-body timezone-note">
-            Dates are converted to the timezone of the place the photo was taken, worked out
-            from its GPS location. Daylight saving is taken into account. Photos with no GPS
-            location in their sidecar are written in UTC, exactly as Google stored them.
-            Your computer's own timezone is never used.
-          </p>
-        </div>
-      </div>
-
-      <div class="actions">
-        <button type="button" class="btn btn-primary" id="downloadButton">
-          <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-               stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M8 2v8"/><path d="M4.5 7 8 10.5 11.5 7"/><path d="M2.5 13h11"/>
-          </svg>
-          <span id="downloadLabel">Download fixed photos</span>
-        </button>
-        <button type="button" class="btn btn-secondary" id="previewReportButton">
-          <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-               stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M8 2v8"/><path d="M4.5 7 8 10.5 11.5 7"/><path d="M2.5 13h11"/>
-          </svg>
-          Preview report
-        </button>
-        <button type="button" class="btn btn-secondary" id="resultsReportButton" disabled>
-          <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-               stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M8 2v8"/><path d="M4.5 7 8 10.5 11.5 7"/><path d="M2.5 13h11"/>
-          </svg>
-          Results report
-        </button>
-        <button type="button" class="btn btn-secondary" id="startOverButton">Start over</button>
-      </div>
-
-      <p class="help-text">
-        Both reports are .csv files you can open in any spreadsheet, one row per file.
-        The <strong>preview report</strong> lists what was found and the date this tool
-        <em>will</em> write into each photo &mdash; worth checking before a big download.
-        The <strong>results report</strong> lists what it actually wrote, so it only becomes
-        available once you have downloaded your photos.
-      </p>
-
-      <p class="progress" id="progress"></p>
-      <div id="skipped"></div>
-
-      <p class="disclosure-row">
-        <a href="#" class="disclosure" id="toggleTable" aria-expanded="false" aria-controls="tableWrap">
-          <span class="chevron" aria-hidden="true"></span>
-          <span id="toggleTableLabel">Show all files</span>
-        </a>
-      </p>
-
-      <div id="tableWrap" hidden>
-        <div class="chips" id="chips"></div>
-        <div class="table-scroll">
-          <table id="results">
-            <thead>
-              <tr>
-                <th class="col-status">Status</th>
-                <th class="col-file">File</th>
-                <th class="col-date">Date found</th>
-                <th class="col-date">Date written</th>
-              </tr>
-            </thead>
-            <tbody id="resultsBody"></tbody>
-          </table>
-        </div>
-        <div class="pager" id="pager"></div>
-      </div>
-    </section>
-
-
-    <!-- ===================================================================
-         SECTION 3 - THE EXPLANATIONS
-         Native <details> and <summary>. No JavaScript anywhere in here: the
-         browser does the opening, the closing and the keyboard handling.
-         =================================================================== -->
-    <div class="explain">
-
-      <details open>
-        <summary>
-          <span class="chevron" aria-hidden="true"></span>
-          <h2>Why do all my photos say today's date?</h2>
-        </summary>
-        <div class="explain-body">
-          <p>
-            Every photo file has a hidden section inside it — the EXIF data — that stores
-            when the picture was taken and where you were standing. It's how your phone
-            builds a timeline and how "photos from Paris" search works.
-          </p>
-          <p>
-            When Google exports your library, it doesn't leave that information inside the
-            photos. It pulls the date and location out and writes them into separate .json
-            files sitting next to each image.
-          </p>
-          <p>
-            The photos themselves come out blank. Every app you open them in — Apple Photos,
-            Lightroom, Windows Explorer, your Mac's Finder — asks the file when it was taken,
-            gets no answer, and falls back to the day you downloaded it.
-          </p>
-          <p>
-            The result: twenty years of birthdays, holidays and ordinary Tuesdays all
-            collapse into a single day. The information isn't lost. It's just sitting in the
-            wrong file.
-          </p>
-          <p>
-            Save the Dates reads those .json files and writes the dates and coordinates back
-            inside your photos, where every other app can find them.
-          </p>
-        </div>
-      </details>
-
-      <details>
-        <summary>
-          <span class="chevron" aria-hidden="true"></span>
-          <h2>What is Google Takeout, and why would I use it?</h2>
-        </summary>
-        <div class="explain-body">
-          <p>
-            Google Takeout is Google's official tool for downloading a copy of your own
-            data — photos, email, contacts, documents. It's free, and it's at
-            <a href="https://takeout.google.com" target="_blank" rel="noopener noreferrer">takeout.google.com</a>.
-          </p>
-          <p>Most people end up there for one of these reasons:</p>
-          <ul>
-            <li>You stopped paying for Google One and want your photos before the storage runs out</li>
-            <li>You're switching to Apple Photos, iCloud, Immich, Ente, or just a hard drive</li>
-            <li>You want a backup that doesn't depend on one company's account staying open</li>
-            <li>You're consolidating a family archive from several accounts into one place</li>
-          </ul>
-          <p>
-            Takeout is the only way to get your full-resolution originals out of Google
-            Photos in bulk. Downloading them by hand from the website caps out at a few at
-            a time.
-          </p>
-        </div>
-      </details>
-
-      <details>
-        <summary>
-          <span class="chevron" aria-hidden="true"></span>
-          <h2>How to export just your photos</h2>
-        </summary>
-        <div class="explain-body">
-          <p>
-            Takeout defaults to exporting everything in your Google account — your email,
-            your Drive, your search history, dozens of services. You almost certainly don't
-            want that. Here's how to get photos only.
-          </p>
-
-          <ol>
-            <li>
-              <strong>Go to takeout.google.com and check your account</strong>
-              <p>
-                Look at the profile picture in the top right. Takeout exports whichever
-                account you're signed into. If you have more than one, make sure it's the
-                right one.
-              </p>
-            </li>
-            <li>
-              <strong>Click "Deselect all"</strong>
-              <p>
-                It's at the top of the long list of services. This is the single most
-                important click on the page. Everything is checked by default.
-              </p>
-            </li>
-            <li>
-              <strong>Scroll down and check "Google Photos" only</strong>
-              <p>
-                The list is alphabetical and long. Google Photos is roughly two-thirds of
-                the way down. Check that one box and nothing else.
-              </p>
-            </li>
-            <li>
-              <strong>Leave the format settings alone</strong>
-              <p>
-                You'll see "Multiple formats" and "All photo albums included." The defaults
-                are correct. Don't change them. If you want to try this tool out first,
-                click "All photo albums included" and pick one small album instead. A
-                30-photo export finishes in minutes; a full library can take days.
-              </p>
-            </li>
-            <li>
-              <strong>Click "Next step" at the very bottom</strong>
-            </li>
-            <li>
-              <strong>Choose your delivery settings</strong>
-              <p>
-                Destination: "Send download link via email" — this is the simplest option.
-                Frequency: "Export once." File type: .zip. Size: 2 GB. Google splits your
-                library across multiple files at whatever size you pick. Smaller files mean
-                more of them, but each one downloads and unzips faster and is less likely to
-                fail partway through. If you're not sure, pick 2 GB.
-              </p>
-            </li>
-            <li>
-              <strong>Click "Create export"</strong>
-            </li>
-            <li>
-              <strong>Wait for the email</strong>
-              <p>
-                A small album can be ready in minutes. A few thousand photos usually takes a
-                few hours. A very large library can take one to two days. Google emails you
-                when it's done.
-              </p>
-            </li>
-            <li>
-              <strong>Download every single file before you unzip anything</strong>
-              <p>
-                If Google gives you seven files, download all seven first. A photo's date can
-                live in one file while the photo lives in another, and unzipping a partial
-                set gives you a partial result. The download links expire after about a week.
-                If you miss the window, you have to start the export over.
-              </p>
-            </li>
-            <li>
-              <strong>Unzip them all into one folder</strong>
-              <p>
-                Double-click each .zip file. Put all the contents in the same place. You'll
-                end up with a folder called Takeout containing a folder called Google Photos.
-              </p>
-            </li>
-          </ol>
-
-          <div class="notice">
-            <svg class="icon notice-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-                 stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="2.25" y="2.25" width="11.5" height="11.5" rx="2.5"/><path d="M5 6.25h6M5 9.25h4"/>
-            </svg>
-            <div>
-              <p class="notice-body">
-                Don't delete the .json files. They look like junk. They are not junk — they
-                are where Google put your dates and locations, and this tool needs them.
-              </p>
-            </div>
-          </div>
-        </div>
-      </details>
-
-      <details>
-        <summary>
-          <span class="chevron" aria-hidden="true"></span>
-          <h2>How to save the dates back to your Google Photos export</h2>
-        </summary>
-        <div class="explain-body">
-          <ol>
-            <li>Unzip your Google Takeout download — you need the folder, not the zip</li>
-            <li>Click "Choose folder" and pick that unzipped Takeout folder</li>
-            <li>Check what it found — every file is listed with what will happen to it, before anything is written</li>
-            <li>Click "Download fixed photos" and save the zip that comes back</li>
-          </ol>
-          <p>
-            Your Google Takeout folder is never modified. Save the Dates hands you a new
-            copy with the dates restored.
-          </p>
-        </div>
-      </details>
-
-      <details>
-        <summary>
-          <span class="chevron" aria-hidden="true"></span>
-          <h2>Your photos never leave your computer</h2>
-        </summary>
-        <div class="explain-body">
-          <p>
-            There is no server. There is no upload. Everything happens inside your browser
-            on your own machine — the same way a calculator app works offline.
-          </p>
-          <p>
-            You can verify this yourself: disconnect from the internet after the page loads.
-            The tool keeps working.
-          </p>
-          <p>
-            No account. No sign-up. No email address. No tracking. No ads. The code is open
-            source and you can read all of it.
-          </p>
-        </div>
-      </details>
-
-      <details>
-        <summary>
-          <span class="chevron" aria-hidden="true"></span>
-          <h2>What this doesn't do (yet)</h2>
-        </summary>
-        <div class="explain-body">
-          <ul>
-            <li>
-              JPEG only. HEIC, PNG and video aren't handled yet — but you don't have to
-              separate them out. Point Save the Dates at the whole folder: it fixes the
-              JPEGs, lists everything else so you can see what was left, and doesn't touch
-              those files.
-            </li>
-            <li>You have to unzip first. It reads folders, not .zip files.</li>
-            <li>
-              Photos with no location get UTC. Google stores every capture time in UTC, and
-              photo files store plain local time with no timezone attached. When a photo has
-              GPS in its .json file, Save the Dates works out the timezone of the place it
-              was taken and converts to the clock time there, daylight saving included. When
-              it has no GPS there is nothing to work that out from, so the time is written in
-              UTC exactly as Google stored it — which can read a few hours off.
-            </li>
-            <li>
-              Very large libraries may struggle. Everything runs in your browser's memory. If
-              you have tens of thousands of photos, do it in batches — one year at a time.
-            </li>
-          </ul>
-          <p>
-            If you need HEIC, video, or a 200 GB library handled in one pass, there are paid
-            desktop apps that do it well. This is the free option for the common case.
-          </p>
-        </div>
-      </details>
-
-      <details>
-        <summary>
-          <span class="chevron" aria-hidden="true"></span>
-          <h2>Questions</h2>
-        </summary>
-        <div class="explain-body">
-          <dl>
-            <dt>Why bother putting the dates back at all?</dt>
-            <dd>
-              Because almost everything you do with photos afterwards depends on them. With
-              the dates back, your library sorts into the order things actually happened,
-              "on this day" memories start working again, and searching for a year or a
-              place finds something. Apple Photos, iCloud, Immich and Ente all build their
-              timelines from this data. Without it, twenty years of photos is one enormous
-              pile stamped with the day you clicked download — everything is there, and you
-              can't find any of it.
-            </dd>
-
-            <dt>Is Save the Dates really free?</dt>
-            <dd>Yes. No cap, no trial, no paid tier, no ads. It's a portfolio project, not a business.</dd>
-
-            <dt>Do I need to install anything?</dt>
-            <dd>No. Save the Dates is a web page. Google Takeout is a website too, so neither step needs an install.</dd>
-
-            <dt>Does Save the Dates work on my phone?</dt>
-            <dd>Not well. You need to pick a folder, which phone browsers don't really do. Use a computer.</dd>
-
-            <dt>Will Save the Dates change my original photos?</dt>
-            <dd>
-              No. Save the Dates builds a new copy and hands it to you as a zip download.
-              The Google Takeout folder you picked is only read, never written to.
-            </dd>
-
-            <dt>My export is a mix of JPEGs, HEICs and videos. Do I have to sort them first?</dt>
-            <dd>
-              No — point Save the Dates at the whole Google Takeout folder. It fixes the
-              JPEGs, and every other file is listed on screen and in the report as "can't be
-              fixed" so you can see exactly what was left out. Those files aren't moved,
-              changed or deleted; they simply aren't in the download.
-            </dd>
-
-            <dt>Can I delete Google's .json files afterward?</dt>
-            <dd>
-              Once you've confirmed the dates look right in the fixed copies, yes. They are
-              Google Takeout's metadata files, not part of your photos.
-            </dd>
-
-            <dt>Why does Save the Dates say some photos are unmatched?</dt>
-            <dd>
-              Google Takeout's file naming is inconsistent — it truncates long filenames and
-              renames duplicates in ways that don't always line up with the photo they belong
-              to. Save the Dates lists every unmatched photo so you can see exactly which
-              ones need attention, rather than silently skipping them.
-            </dd>
-
-            <dt>What about photos I edited in Google Photos?</dt>
-            <dd>
-              Google Takeout exports those with "-edited" in the filename and no .json file
-              of their own. Save the Dates gives them the date from the original photo.
-            </dd>
-          </dl>
-        </div>
-      </details>
-
+    <div class="cta-row">
+      <a class="btn btn-primary" href="tool.html">Try the tool &rarr;</a>
+      <a class="btn btn-secondary" href="https://github.com/Roanukz/save-the-dates">View the source</a>
     </div>
 
+    <div class="facts">
+      <div class="fact">
+        <span class="fact-value">Since 2019</span>
+        <span class="fact-label">Independently documented, still unfixed</span>
+      </div>
+      <div class="fact">
+        <span class="fact-value">100%</span>
+        <span class="fact-label">Client-side — no upload, no server</span>
+      </div>
+      <div class="fact">
+        <span class="fact-value">Zero</span>
+        <span class="fact-label">Network calls at runtime, verifiably</span>
+      </div>
+      <div class="fact">
+        <span class="fact-value">$25&ndash;50</span>
+        <span class="fact-label">What paid tools charge for this job</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap layout">
+
+  <nav class="toc" aria-label="Sections">
+    <p class="toc-title">Contents</p>
+    <ol>
+      <li><a href="#tldr">Summary</a></li>
+      <li><a href="#problem">A. The problem</a></li>
+      <li><a href="#evidence">B. The evidence</a></li>
+      <li><a href="#incumbent">C. Why Google won't</a></li>
+      <li><a href="#built">D. What I built</a></li>
+      <li><a href="#next">E. What I'd do next</a></li>
+      <li><a href="#kill">F. What I'd kill</a></li>
+      <li><a href="#frameworks">Method</a></li>
+    </ol>
+  </nav>
+
+  <main id="main">
+
+    <section id="tldr" class="tldr">
+      <p class="section-kicker">The short version</p>
+      <h2>Summary</h2>
+      <ul>
+        <li><strong>The problem is real, documented and durable.</strong> Google Photos Takeout strips capture date and GPS into JSON sidecars, and Google's late-2024 rename to <code>.supplemental-metadata.json</code> broke the leading free tool. The position is genuinely empty: a free, non-technical, 100% client-side, browser-based repairer.</li>
+        <li><strong>The product judgment is in the costly decisions, not the code.</strong> GPS-derived timezone (a documented reversal of the simpler plan), JPEG-only scope with safe passthrough, two deliberately-hard-to-confuse CSV reports, and privacy you can verify rather than take on trust.</li>
+        <li><strong>The binding constraint is distribution, not capability.</strong> With one commit and no users, this cannot support market-share claims, and this teardown does not make any. The top three roadmap items are all distribution, not features. That ordering is the point.</li>
+      </ul>
+
+      <div class="callout callout-notice">
+        <h4>How this was built</h4>
+        <p>This tool was built with AI assistance (Claude Code). I am a product person, not a career engineer, and I am deliberate about that: my contribution is the product judgment, not the syntax. I chose the client-side architecture to make privacy verifiable, reversed the original timezone plan in favour of the harder GPS-derived approach because travel photos are the memories people most care about, scoped to JPEG-first with safe passthrough so users would not have to pre-sort, and isolated Google's volatile matching rules in one function because the export format keeps breaking other tools. The AI wrote code against those decisions; the decisions are mine.</p>
+      </div>
+    </section>
+
+    <section id="problem">
+      <p class="section-kicker">Part A</p>
+      <h2>The problem</h2>
+      <p>When someone leaves Google Photos, they use Google Takeout to export their library. The photos come back, but the <em>when</em> and the <em>where</em> do not come back inside the photos. Google stores the original capture time and GPS position in separate JSON sidecar files rather than writing them into each JPEG's EXIF. Most photo apps — Apple Photos, Lightroom, Immich, a NAS — read EXIF, not sidecars, so every photo lands with the wrong date, usually the export date, and no location. A library's timeline collapses.</p>
+
+      <p>Framed in <strong>Jobs To Be Done</strong> (Clayton Christensen; the hire/fire formulation and the milkshake study from <em>Competing Against Luck</em>, 2016), the user is not hiring a "metadata tool." The functional job is: <em>when I move my photo library off Google, help me keep my memories in the right time and place so my new app shows my life in order.</em></p>
+
+      <p>The emotional and social dimensions are what give the job its weight. These are birthdays, trips, and a child growing up, and a scrambled timeline feels like losing the memory itself. The firing event is concrete and dated: a user runs an export, imports it, sees everything stamped with today's date, and starts searching for a fix.</p>
+
+      <h3>The forces of progress</h3>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Force</th><th>What it looks like here</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Push</strong></td><td>The end of free unlimited Google Photos storage — announced 11 November 2020, effective 1 June 2021, citing 4 trillion photos stored and 28 billion uploaded weekly — triggered mass migrations. Account bans and lock-in fear push others.</td></tr>
+            <tr><td><strong>Pull</strong></td><td>Self-hosted destinations (Immich) and rival clouds are attractive.</td></tr>
+            <tr><td><strong>Anxiety</strong></td><td>"Will a tool corrupt my originals? Do I have to trust a website with my photos and their GPS locations?"</td></tr>
+            <tr><td><strong>Habit</strong></td><td>"It is easier to just keep paying Google One."</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Save the Dates is designed against those forces. It never touches originals, which reduces anxiety. It runs entirely in the browser with no upload, which reduces the privacy anxiety that is unusually high here because the data is literally a map of where you have been. And it is free with no install, which lowers the switching cost that habit exploits.</p>
+    </section>
+
+    <section id="evidence">
+      <p class="section-kicker">Part B</p>
+      <h2>Evidence the gap is real and recurring</h2>
+      <p>This is not a hypothesised problem. It recurs across independent users, communities and years.</p>
+
+      <ul class="evidence">
+        <li><span class="src">Adobe Community</span> <span class="yr">— Nov 2019, continuing into 2020</span><br>"Photo exports have wrong dates." Early documentation that Takeout dates import wrong.</li>
+        <li><span class="src">Samsung Community</span> <span class="yr">— May 2021</span><br>Tied to the 1 June 2021 end of free unlimited storage, which triggered mass migrations.</li>
+        <li><span class="src">Adobe</span> <span class="yr">— Jul 2022</span><br>"Can't open the json photos." Users do not even understand what the sidecar files are.</li>
+        <li><span class="src">Immich Discussion #5083</span> <span class="yr">— 2023</span><br><blockquote>Many Immich users are migrating from Google Photos via Google Takeout which uses JSON sidecars… Currently many of us are using scripts or writing small programs to extract this data and edit the exif.</blockquote>Maintainers declined to build it in, pointing users to the third-party immich-go tool. Discussion #21392 raised the same request again for the new format.</li>
+        <li><span class="src">Google Photos Takeout Helper #353</span> <span class="yr">— 2024&ndash;2025</span><br>Documents the late-2024 rename to <code>.supplemental-metadata.json</code> that broke existing tools. User report, verbatim: <blockquote>I have some that are dated to 1868 and 2068.</blockquote></li>
+        <li><span class="src">Ente #4953</span> <span class="yr">— 2025</span><br>A second self-hosted destination hit by the same rename, with some exports using old names and others new.</li>
+        <li><span class="src">Apple Community thread 256157477</span> <span class="yr">— Oct 2025</span><br><blockquote>meta data of all files set to the takeout date, and hence of no use anymore</blockquote>The same thread confirms the timezone problem: Google Photos appears to use UTC rather than local time.</li>
+        <li><span class="src">Hacker News</span> <span class="yr">— Mar 2024, Jun 2024</span><br>Item 40700146, <em>Why Google Takeout is sooo bad</em> (144 points), and the Takeout metadata complaints running through item 39570692, <em>Ente: Open-Source, E2E Encrypted, Google Photos Alternative</em> (964 points).</li>
+        <li><span class="src">ExifTool forum &amp; Lightroom Queen</span> <span class="yr">— various</span><br>Topics 11064, 16079, 14771. Google writes metadata in its own proprietary JSON rather than industry-standard sidecars.</li>
+      </ul>
+
+      <div class="callout callout-warning">
+        <h4>Freshness check, late 2025 into 2026</h4>
+        <p>The problem is still live and, if anything, worse. The late-2024 rename is still rolling out inconsistently, so a single export can contain the old format, the new format, or both. Google also truncates filenames at 46 characters, producing a slot machine of truncated sidecar names — <code>.supplemental-metadat.json</code>, <code>.supple.json</code>, <code>.s.json</code>. Guides updated in March and April 2026 still describe the wrong-date problem as current. There is no evidence Google has fixed the export behaviour.</p>
+      </div>
+
+      <p>This is a durable, recurring, independently verified problem, and the format keeps changing in ways that break tools. That last fact is central to the product thesis — see decision 5.</p>
+    </section>
+
+    <section id="incumbent">
+      <p class="section-kicker">Part C</p>
+      <h2>Why the incumbent does not serve it</h2>
+      <p>Google could re-embed metadata into files at export time. It does not. The honest framing is incentive analysis, not accusation — I am interpreting motive here, so I flag it as inference rather than proven intent.</p>
+
+      <h3>1. Storage economics</h3>
+      <p>Google does not keep your original file intact. As described in the Apple Community thread, Google strips out the metadata and saves it elsewhere, then reformats the files to save storage cost. Re-assembling a faithful original at export is extra engineering work on data Google deliberately disaggregated to cut cost. There is no upside for Google.</p>
+
+      <h3>2. Retention friction</h3>
+      <p>A software engineer who documented his own 263 GB extraction argued the friction is a strategy: every one of these friction points exists because Google calculated that most people will give up and keep paying for Google One. Friction on the way out protects subscriptions.</p>
+
+      <div class="callout callout-info">
+        <h4>The load-bearing claim is the weaker one</h4>
+        <p>There is no investigative-journalism proof of deliberate malice, and one cited engineer conceded it is unlikely there was any ill intent. So the claim I am actually making is smaller and more defensible: <strong>Google has no incentive to fix it, therefore the gap persists.</strong> That is enough to explain an unsolved problem this old.</p>
+      </div>
+
+      <p>This is the structural-moat point. The gap is not a Google oversight that Google will close next quarter and crush a small tool. It is a stable consequence of Google's cost structure and retention incentives. The opportunity is durable precisely because the incumbent is structurally uninterested.</p>
+    </section>
+
+    <section id="built">
+      <p class="section-kicker">Part D</p>
+      <h2>What I built</h2>
+      <p>Save the Dates is a single-page, 100% client-side browser tool. You open <code>index.html</code>; that is the entire install. No server, no build step, no package manager, no accounts, no database, no analytics, no telemetry, and no network calls at runtime. It reads Takeout JSON sidecars and writes the original capture date and GPS position back into each JPEG's EXIF, then hands back a new copy as a download. It never modifies originals.</p>
+
+      <p>I use <strong>Marty Cagan's four product risks</strong> (<em>Inspired</em>, SVPG: value, usability, feasibility, viability) as the spine, because each interesting decision retires a specific risk.</p>
+
+      <div class="decision">
+        <span class="decision-num">Decision 1</span>
+        <h3>GPS-derived timezone — a documented reversal</h3>
+        <p>The original plan recommended the simpler approach: convert the UTC timestamp to the browser's local timezone, disclose it in the UI, and file GPS-derived inference as a future enhancement. I reversed this and built the harder, more correct version — derive the timezone from the photo's GPS position using <code>tz-lookup</code>, not from the machine running the tool. A photo taken at 3pm in London reads 3pm whether the tool runs at home or abroad. Daylight saving is resolved for the actual date via <code>Intl</code>. Photos with no GPS fall back to UTC, exactly as Google stored it. The tool also writes the <code>OffsetTime*</code> tags so apps that understand them can recover the true instant.</p>
+        <ul class="tradeoff">
+          <li><span class="k">Cost</span><span>An extra vendored dependency and added complexity.</span></li>
+          <li><span class="k">Bought</span><span>Correct times for travel photos — disproportionately the memories people care about, and the emotional core of the job.</span></li>
+          <li><span class="k">Why</span><span>The browser-local approach fails silently and worst precisely for the highest-value photos, and the failure stays invisible until much later.</span></li>
+        </ul>
+        <p style="margin-top:var(--space-16)">Under Cagan, this is a deliberate acceptance of higher <strong>feasibility</strong> cost to retire a <strong>value</strong> risk. It is the decision I would point to first: a costly commitment to correctness against the easier path, with the tradeoff stated rather than hidden.</p>
+      </div>
+
+      <div class="decision">
+        <span class="decision-num">Decision 2</span>
+        <h3>JPEG-only scope, with non-JPEG passthrough</h3>
+        <p>HEIC, PNG and video are counted, listed and left strictly alone, so you do not have to sort a mixed folder before using this. That is a usability decision disguised as a scope decision — the alternative imports a chore into a tool whose whole point is removing a chore.</p>
+        <p>Under the <strong>Kano model</strong> (Kano et al., 1984), silently and safely passing files through is close to a must-be expectation once you decide not to process them; if the tool choked or lost files, users would be furious. Counting and listing them is a small performance attribute: it proves nothing was dropped.</p>
+      </div>
+
+      <div class="decision">
+        <span class="decision-num">Decision 3</span>
+        <h3>Two reports: preview versus results</h3>
+        <p>A PREVIEW report of what <em>will</em> be written, and a RESULTS report of what <em>was</em>. They are deliberately hard to confuse, since one describes photos nothing has happened to yet.</p>
+        <p>Under Kano this is a delighter. No competitor offers it, most users would not have asked for it, and its absence would generate no complaints. But it retires a <strong>trust</strong> risk directly: the reason people abandon these migrations is fear of silent corruption, and a preview you can inspect before committing is the antidote.</p>
+      </div>
+
+      <div class="decision">
+        <span class="decision-num">Decision 4</span>
+        <h3>Verifiable privacy via vendored libraries</h3>
+        <p>The three third-party libraries are vendored into <code>vendor/</code> and loaded from disk, so the page works with the network turned off — which is also the easiest way to verify the privacy claim.</p>
+        <p>This is the sharpest single move in the product. Everyone in this category <em>asserts</em> privacy. This one makes it falsifiable by the user: pull your network cable, and the tool still works, therefore nothing left your machine. That converts a marketing claim into a testable property, and retires the dominant <strong>value</strong> risk in the category without asking anyone to trust me.</p>
+      </div>
+
+      <div class="decision">
+        <span class="decision-num">Decision 5</span>
+        <h3>Isolating volatile matching logic in <code>findSidecarFor()</code></h3>
+        <p>Google's sidecar naming is inconsistent: it truncates long names at 46 characters, moves duplicate counters around, and ships two different sidecar formats in the same export. All of that guesswork is isolated in one function, so the rules can change in one place when Google changes the format again.</p>
+        <p>This is the product thesis expressed as architecture. Part B proved the format changes and breaks tools; GPTH broke on exactly this and, being abandoned, stayed broken. Isolating the volatile logic is a bet that the environment is hostile and will change, and a decision to make the inevitable maintenance cheap. That is product judgment about the problem's dynamics, not engineering flourish.</p>
+      </div>
+
+      <div class="decision">
+        <span class="decision-num">Decision 6</span>
+        <h3>Non-technical naming and up-front disclaimers</h3>
+        <p>Buttons and section headings are named for non-technical users, with disclaimers and instructions placed up front to pre-empt anticipated roadblocks. Under Cagan this is the <strong>usability</strong> risk, and it is also the entire wedge against the competition. Every serious competitor is a CLI or requires installation. Naming things for humans <em>is</em> the product.</p>
+      </div>
+
+      <div class="decision">
+        <span class="decision-num">Decision 7</span>
+        <h3>A design system with runtime-computed contrast checking</h3>
+        <p>Shipped alongside the tool: <code>tokens.css</code> (portable raw values), <code>style.css</code> (components), <code>DESIGN.md</code> and a <code>design/</code> folder documenting the reasoning, and <code>contrast-check.html</code>, which <em>recomputes</em> every contrast ratio in the system at runtime in the browser rather than asserting ratios in prose.</p>
+        <p>This is the same intellectual move as verifiable privacy, applied to accessibility: do not assert the ratio, compute it live so it cannot rot. <em>This page is styled entirely from that token file, unchanged</em> — which is the portability claim tested rather than stated.</p>
+      </div>
+
+      <div class="decision">
+        <span class="decision-num">Decision 8</span>
+        <h3>Repo hygiene reflecting the privacy thesis</h3>
+        <p>No sample Takeout data is committed and <code>.gitignore</code> enforces it, because sidecar JSON files carry GPS coordinates and therefore constitute personal data. The product's core belief — that this data is sensitive — is enforced even in the repo's plumbing. Also shipped: a vendored-dependency licence table, an MIT licence, and a trademark disclaimer.</p>
+      </div>
+
+      <h3>Scope, made legible</h3>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Decision</th><th>In scope</th><th>Out of scope</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td><strong>File types</strong></td><td>JPEG EXIF repair</td><td>HEIC, PNG, video processing</td><td>JPEG is the bulk of consumer libraries; passthrough means no pre-sorting. HEIC and video need heavier decoders and container rewriting.</td></tr>
+            <tr><td><strong>Metadata</strong></td><td>DateTimeOriginal, DateTimeDigitized, DateTime, GPS, OffsetTime*</td><td>Captions, albums, people tags</td><td>Date and place are the memory-defining fields; the rest is a larger, separate job.</td></tr>
+            <tr><td><strong>Timezone</strong></td><td>GPS-derived, DST-resolved, UTC fallback</td><td>Manual per-photo override</td><td>Correct-by-default for the high-value travel case, without adding UI complexity.</td></tr>
+            <tr><td><strong>Architecture</strong></td><td>Client-side single page</td><td>Server, accounts, cloud processing</td><td>The privacy thesis; also zero infra cost and zero install.</td></tr>
+            <tr><td><strong>Output</strong></td><td>New copy as download, batched zips</td><td>In-place modification</td><td>Never risk originals; batching avoids the tab crash on large libraries.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Business viability, stated honestly</h3>
+      <p>There is no business model, and for a portfolio artifact there does not need to be one. But if this were a real venture, viability is the weakest of the four risks. Willingness to pay clearly exists: Metadata Fixer's core app is $39 as a lifetime deal, Proper Takeout is €24.99 one-time after a free tier, and Quiver Photos charges $50 for a lifetime licence. People pay $25&ndash;50 to solve this. A free client-side tool has no capture mechanism and no funded support channel. I am not claiming a business; I am claiming product judgment.</p>
+
+      <h3>What I got wrong, or would change</h3>
+      <ul>
+        <li><strong>No hosted URL</strong> — the biggest inconsistency between thesis and artifact. A tool whose entire pitch is "no install, just open it" was distributed as a repo you had to clone. <em>Fixed: this page and the tool are now live on GitHub Pages.</em></li>
+        <li><strong>Licence ambiguity.</strong> <code>jszip@3.10.1</code> is dual-licensed MIT or GPLv3; the licence table should state which one I am exercising, to avoid ambiguity for anyone reusing the repo.</li>
+        <li><strong>HEIC will disappoint some users.</strong> JPEG-only is the right launch scope, but HEIC is now common on iPhones, and "counted and skipped" will block a meaningful subset. I would measure how often it is the blocker before building it.</li>
+        <li><strong>Zero users means zero telemetry-backed claims.</strong> Every statement about user behaviour here is reasoned from third-party evidence, not my own data — which the tool deliberately does not collect. That is the correct privacy choice and a real analytics blind spot at the same time. I would not add telemetry; I would run consented usability sessions instead.</li>
+      </ul>
+    </section>
+
+    <section id="next">
+      <p class="section-kicker">Part E</p>
+      <h2>What I would do next</h2>
+      <p>The honest headline: <strong>capability is not the constraint, distribution is.</strong> The tool works and embodies a clear thesis, but it has one commit, no stars and no users. Nothing else on a roadmap matters until a stranger can use it in one click and I can learn from real usage. A tool with zero users cannot support market-share claims, and this document does not make any.</p>
+
+      <p>I prioritise with <strong>RICE</strong> (Sean McBride, Intercom) because its Reach term forces distribution above feature-building, which is exactly the discipline needed here. Impact is scored 0.25&ndash;3, effort in person-days. These are my estimates and I flag them as such.</p>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Initiative</th><th>Reach</th><th>Impact</th><th>Conf.</th><th>Effort</th><th>RICE</th><th>Rationale</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Deploy to GitHub Pages, one live URL everywhere</strong></td><td class="num">High</td><td class="num">3</td><td class="num">100%</td><td class="num">0.5 d</td><td class="num">Very high</td><td>Removes the one inconsistency that undercuts the entire pitch. Turns "clone this repo" into "click this link."</td></tr>
+            <tr><td><strong>Publish this teardown as the front door</strong></td><td class="num">High</td><td class="num">2</td><td class="num">90%</td><td class="num">2 d</td><td class="num">High</td><td>The document is the portfolio; the tool is the evidence.</td></tr>
+            <tr><td>Post into the threads that already prove the gap</td><td class="num">Medium</td><td class="num">2</td><td class="num">70%</td><td class="num">1 d</td><td class="num">High</td><td>Demand is already assembled in known locations. The cheapest real reach.</td></tr>
+            <tr><td>Drag-and-drop the whole Takeout zip, no pre-extraction</td><td class="num">Medium</td><td class="num">2</td><td class="num">70%</td><td class="num">3 d</td><td class="num">Medium</td><td>Competitors' number one friction is "extract everything first." Removing it is a differentiated, in-thesis win.</td></tr>
+            <tr><td>Consented, manual usability sessions (5 users)</td><td class="num">Low</td><td class="num">3</td><td class="num">80%</td><td class="num">2 d</td><td class="num">Medium</td><td>The only honest way to get user data without violating the privacy thesis.</td></tr>
+            <tr><td>HEIC support</td><td class="num">High</td><td class="num">2</td><td class="num">30%</td><td class="num">10 d+</td><td class="num">Low</td><td>Real demand, but heavy, low confidence, and off the JPEG-first thesis. Measure blocker rate first.</td></tr>
+            <tr><td>Captions and album reconstruction</td><td class="num">Medium</td><td class="num">2</td><td class="num">40%</td><td class="num">8 d</td><td class="num">Low</td><td>There is a gap — GPTH silently drops these — but it is a different, larger job. Defer.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout callout-success">
+        <h4>The top three are all distribution, not code</h4>
+        <p>That ordering is the finding. Under Teresa Torres's <strong>Opportunity Solution Tree</strong>, the desired outcome is not "more features" — it is "a stranger successfully repairs their library and trusts the result." The top opportunities are discovery, trust and reach problems, so the highest-value next steps attack those rather than the backlog.</p>
+      </div>
+    </section>
+
+    <section id="kill">
+      <p class="section-kicker">Part F</p>
+      <h2>What I would kill</h2>
+      <p>Using the <strong>Blue Ocean ERRC grid</strong> (Kim and Mauborgne, 2005), which maps unusually well onto "what I would not build," because the strategy is to compete on axes the incumbents ignore rather than to out-feature them.</p>
+
+      <div class="errc">
+        <div class="errc-cell">
+          <h4>Eliminate</h4>
+          <ul>
+            <li>The command line. Every free incumbent competes here; it is the single biggest reason non-technical users cannot self-serve. Killing it is the wedge.</li>
+            <li>Installation and accounts. Both are abandonment points, and both are unnecessary for a client-side tool.</li>
+            <li>Server-side processing and telemetry. Eliminated on purpose — it is the privacy moat.</li>
+          </ul>
+        </div>
+        <div class="errc-cell">
+          <h4>Reduce</h4>
+          <ul>
+            <li>Scope at launch: JPEG only. Reduce surface area to the fields that define the memory.</li>
+            <li>Configuration. No dozens of flags. Correct-by-default beats configurable.</li>
+          </ul>
+        </div>
+        <div class="errc-cell">
+          <h4>Raise</h4>
+          <ul>
+            <li>Trust: verifiable privacy, preview-before-write, never touch originals — far above a category whose norm is "run this script and hope."</li>
+            <li>Correctness: GPS-derived timezone with DST and <code>OffsetTime*</code> tags, above even most paid tools' defaults.</li>
+            <li>Plain-language design: name everything for humans.</li>
+          </ul>
+        </div>
+        <div class="errc-cell">
+          <h4>Create</h4>
+          <ul>
+            <li>A browser-based, zero-install, client-side repairer for non-technical users. No prominent free tool occupies this exact box.</li>
+            <li>Runtime-verifiable claims — privacy via network-off, accessibility via live contrast recomputation. "Prove it yourself" properties are a category-level novelty.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Things I would kill if proposed</h3>
+      <ul>
+        <li><strong>A cloud or upload version "for convenience."</strong> It would destroy the only real moat to save a step the client-side design already removes. Kill on sight.</li>
+        <li><strong>Accounts, saved history, a dashboard.</strong> Retention theatre for a tool people use once or twice. It adds a database, a privacy liability and infra cost for no user value.</li>
+        <li><strong>A paid tier, now.</strong> There is willingness to pay in the category, but monetising a trust-first free tool with zero users would poison distribution before it starts.</li>
+        <li><strong>Telemetry "to understand users."</strong> It contradicts the thesis and would be the first thing a sceptical user checks for. Use consented manual sessions instead.</li>
+      </ul>
+
+      <div class="callout callout-warning">
+        <h4>An honesty check on positioning</h4>
+        <p>The "no free browser-based client-side repairer" claim held up under research, but the free-tool landscape is not static. GPTH is effectively abandoned — last release September 2023, last commit January 2025, many unanswered open issues, broken on the new format — but an active community fork exists that does write EXIF and handle the new sidecar format, and there is a newer free GUI desktop app. Both are still <em>installed desktop tools</em>, not zero-install browser tools, so the positioning stands. But it should be stated as "the only free zero-install browser-based option," not "the only free option." Overclaiming here is exactly the kind of thing an interviewer will fact-check.</p>
+      </div>
+    </section>
+
+    <section id="frameworks">
+      <p class="section-kicker">Appendix</p>
+      <h2>Method made visible</h2>
+      <p>The frameworks that did real work here, and what each one was load-bearing for.</p>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Framework</th><th>What it did</th><th>Weight</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Jobs To Be Done</strong><br>Christensen</td><td>Defined the real job — keep memories in the right time and place — and the forces of progress. Justifies the timezone reversal.</td><td>Load-bearing</td></tr>
+            <tr><td><strong>Kano model</strong><br>Kano et al., 1984</td><td>Classified non-JPEG passthrough (must-be) against the two CSV reports (delighter).</td><td>Load-bearing</td></tr>
+            <tr><td><strong>Four product risks</strong><br>Cagan, <em>Inspired</em></td><td>The spine of Part D — each decision retires value, usability, feasibility or viability.</td><td>Load-bearing</td></tr>
+            <tr><td><strong>RICE</strong><br>McBride, Intercom</td><td>Forced distribution above features in the roadmap.</td><td>Load-bearing</td></tr>
+            <tr><td><strong>Blue Ocean ERRC</strong><br>Kim &amp; Mauborgne, 2005</td><td>Mapped directly onto what to kill, and onto the positioning.</td><td>Load-bearing</td></tr>
+            <tr><td><strong>Opportunity Solution Tree</strong><br>Torres · <strong>Double Diamond</strong><br>Design Council</td><td>Framed outcomes over features, and the documented design process.</td><td>Supporting</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Frameworks deliberately left out</h3>
+      <ul>
+        <li><strong>North Star / HEART / AARRR</strong> — no users and no telemetry, so any metric would be invented and would undercut the document's honesty.</li>
+        <li><strong>MoSCoW</strong> — RICE and ERRC already do the prioritisation and scope work more precisely.</li>
+        <li><strong>Working Backwards / PR-FAQ</strong> — this is a retrospective, not a launch proposal; a fabricated press release would add nothing.</li>
+        <li><strong>Wardley mapping</strong> — the structural-incentive analysis already carries the moat argument without over-engineering it.</li>
+      </ul>
+      <p>Naming what I left out, and why, is itself a position.</p>
+    </section>
+
   </main>
-
-
-  <!-- =====================================================================
-       SECTION 4 - THE FOOTER
-       ===================================================================== -->
-  <footer class="site-footer">
-    <p class="help-text">
-      Save the Dates is a free, open-source tool. It is not affiliated with, endorsed by,
-      or sponsored by Google. Google Photos™ and Google Takeout™ are trademarks of
-      Google LLC.
-    </p>
-    <p class="help-text">
-      <a href="https://github.com/Roanukz/save-the-dates" target="_blank" rel="noopener noreferrer">View the source on GitHub</a>
-    </p>
-  </footer>
-
 </div>
 
-<!-- All three libraries live in this project folder. Nothing is fetched from the
-     internet when this page runs.
-     tz-lookup.js holds a compressed map of the world's timezone boundaries, so a
-     GPS position can become a name like "Europe/London" without asking a server. -->
-<script src="vendor/piexif.js"></script>
-<script src="vendor/jszip.min.js"></script>
-<script src="vendor/tz-lookup.js"></script>
-<script src="app.js"></script>
+<footer>
+  <div class="wrap">
+    <p><strong>Save the Dates</strong> — <a href="tool.html">try the tool</a> · <a href="https://github.com/Roanukz/save-the-dates">source on GitHub</a> · MIT licensed</p>
+    <p>Written by Roanuk Zaman. Built with AI assistance; the product decisions are mine. Not affiliated with, endorsed by, or sponsored by Google. Google Photos&trade; and Google Takeout&trade; are trademarks of Google LLC.</p>
+  </div>
+</footer>
+
+<script>
+// Scrollspy for the contents rail. No dependencies, consistent with the
+// project's no-build-step constraint.
+(function () {
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  if (!links.length || !('IntersectionObserver' in window)) return;
+
+  var byId = {};
+  links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+
+  var visible = new Set();
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) visible.add(e.target.id); else visible.delete(e.target.id);
+    });
+    var order = Object.keys(byId);
+    var first = order.find(function (id) { return visible.has(id); });
+    links.forEach(function (a) { a.classList.remove('active'); });
+    if (first) byId[first].classList.add('active');
+  }, { rootMargin: '-10% 0px -70% 0px', threshold: 0 });
+
+  Object.keys(byId).forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) observer.observe(el);
+  });
+})();
+</script>
+
 </body>
 </html>

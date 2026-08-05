@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Save the Dates — Fix Google Photos Takeout Dates | Free, No Install</title>
+  <meta name="description" content="Your Google Takeout photos all show today's date. Save the Dates puts the real capture dates and locations back into your photo files. Free, runs in your browser, nothing uploaded, no file limit.">
+
+  <!-- Share card. og-image.png is rendered from og-image.svg; edit the SVG. -->
+  <meta property="og:title" content="Save the Dates - Photo Date &amp; Timezone Repair">
+  <meta property="og:description" content="Free, browser-based tool that fixes wrong dates and timezones on photo libraries. No install, no account, no upload - files never leave your device.">
+  <meta property="og:image" content="https://roanukz.github.io/save-the-dates/og-image.png?v=4">
+  <meta property="og:image:width" content="2400">
+  <meta property="og:image:height" content="1254">
+  <meta property="og:url" content="https://roanukz.github.io/save-the-dates/tool.html">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- Both stylesheets are local files. Nothing is fetched from the internet. -->
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="page">
+
+  <!-- =====================================================================
+       SECTION 1 - THE HERO
+       ===================================================================== -->
+  <header>
+    <h1>Save the Dates</h1>
+
+    <p class="lead">
+      Google Photos gave your memories back. It kept the when and the where.
+    </p>
+
+    <p class="hero-body">
+      Exported your photos out of Google Photos and now every single one says today's
+      date? That's not a bug you caused. Drop your export folder below and get the real
+      dates and locations back.
+    </p>
+
+    <p class="trust">
+      Free forever &middot; Nothing to install &middot; Your photos never leave your computer &middot; No sign-up
+    </p>
+  </header>
+
+
+  <main>
+
+    <!-- ===================================================================
+         SECTION 2 - THE TOOL
+         Directly under the hero, above everything else, so somebody who
+         already knows what they are doing never has to scroll.
+         =================================================================== -->
+
+    <!-- -------------------------------------------------------------------
+         SCREEN 1 - choosing a folder.
+         Three states, told apart by their BORDER as well as their colour, so
+         they still read with the colour removed.
+         ------------------------------------------------------------------- -->
+    <section id="phaseIdle">
+
+      <div id="dropZone" class="dropzone">
+
+        <!-- State: idle -->
+        <div class="dz-state" id="dzIdle">
+          <svg class="dz-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+               stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M1.75 4.75A1.5 1.5 0 0 1 3.25 3.25h2.4l1.3 1.6h5.8a1.5 1.5 0 0 1 1.5 1.5v6.4H1.75Z"/>
+          </svg>
+          <!-- This is the visible label for the folder input below. Clicking it
+               opens the same folder chooser the button does. -->
+          <label class="dz-headline" for="folderPicker">Drag your Takeout folder here</label>
+          <!-- The privacy claim sits ABOVE the button, not in fine print below it. -->
+          <p class="dz-privacy">Nothing is uploaded.</p>
+          <button type="button" class="btn btn-secondary" id="chooseButton">
+            <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                 stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M1.75 4.75A1.5 1.5 0 0 1 3.25 3.25h2.4l1.3 1.6h5.8a1.5 1.5 0 0 1 1.5 1.5v6.4H1.75Z"/>
+            </svg>
+            Choose folder
+          </button>
+        </div>
+
+        <!-- State: something is being dragged over -->
+        <div class="dz-state" id="dzDragover" hidden>
+          <svg class="dz-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+               stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M1.75 4.75A1.5 1.5 0 0 1 3.25 3.25h2.4l1.3 1.6h5.8a1.5 1.5 0 0 1 1.5 1.5v6.4H1.75Z"/>
+          </svg>
+          <p class="dz-headline">Release to read this folder</p>
+          <p class="dz-sub" id="dzDragName">&nbsp;</p>
+        </div>
+
+        <!-- State: what was dropped cannot be used -->
+        <div class="dz-state" id="dzRejected" hidden>
+          <svg class="dz-icon dz-icon-error" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+               stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="8" cy="8" r="6.25"/><path d="M5.6 5.6l4.8 4.8M10.4 5.6l-4.8 4.8"/>
+          </svg>
+          <p class="dz-headline" id="dzRejectHeadline">That's a .zip file</p>
+          <!-- The reassurance sentence is mandatory. A rejected drop is exactly where
+               an anxious person assumes they have broken something. -->
+          <p class="dz-body" id="dzRejectBody">
+            Unzip it first, then drag the folder that comes out.
+            <strong>Your file wasn't changed.</strong>
+          </p>
+          <p class="dz-filename" id="dzRejectName"></p>
+          <button type="button" class="btn btn-secondary" id="tryAgainButton">Try again</button>
+        </div>
+
+        <!-- The real file input. Hidden, and driven by the label and buttons above. -->
+        <input type="file" id="folderPicker" webkitdirectory multiple hidden>
+      </div>
+
+      <div class="notice">
+        <svg class="icon notice-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="2.25" y="2.25" width="11.5" height="11.5" rx="2.5"/><path d="M5 6.25h6M5 9.25h4"/>
+        </svg>
+        <div>
+          <p class="notice-label">Good to know</p>
+          <p class="notice-body">
+            Choose the folder, not the photos. Unzip what Google sent you, then pick the
+            whole Takeout folder &mdash; the .json files inside it are where your dates are.
+            A mix of file types is fine: this fixes the JPEGs and leaves everything else alone.
+          </p>
+          <p class="notice-body">
+            If Google gave you multiple zip files, unzip all of them into the SAME folder
+            before choosing it. Google splits photos and their metadata across different
+            zips, and both halves have to be in one place.
+          </p>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- -------------------------------------------------------------------
+         SCREEN 2 - the wait.
+         This can run for minutes with no server to blame, so it carries FIVE
+         independent signs of life: the arc, the moving bar, the filename
+         ticker, the elapsed clock, and the three tallies. No single stall can
+         make all five stop, so nothing here can be mistaken for a crash.
+         ------------------------------------------------------------------- -->
+    <section id="phaseWorking" hidden>
+      <div class="card work-card">
+
+        <div class="work-head">
+          <svg class="icon icon-20 arc" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+               stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="8" cy="8" r="6.25" class="arc-track"/>
+            <path d="M8 1.75A6.25 6.25 0 0 1 14.25 8"/>
+          </svg>
+          <h2 id="workHeading">Reading your photos</h2>
+          <!-- Coarse and honest. Never "2:47", and never shown before we have
+               enough files to make an estimate worth trusting. -->
+          <span class="work-eta" id="workEta"></span>
+        </div>
+
+        <p class="work-count"><span id="workCount">0 of 0</span> files</p>
+
+        <div class="bar" role="progressbar" aria-labelledby="workHeading">
+          <div class="bar-fill" id="workBar"></div>
+        </div>
+
+        <div class="ticker">
+          <p class="ticker-label">Now reading</p>
+          <p class="ticker-file" id="tickerFile">&nbsp;</p>
+        </div>
+
+        <p class="work-elapsed" id="workElapsed">0 s elapsed</p>
+
+        <div class="tallies">
+          <div class="tally tally-success">
+            <span class="tally-label">Fixed</span>
+            <span class="tally-value" id="tallyFixed">0</span>
+          </div>
+          <div class="tally tally-notice">
+            <span class="tally-label">Can't be fixed</span>
+            <span class="tally-value" id="tallyCannot">0</span>
+          </div>
+          <div class="tally tally-warning">
+            <span class="tally-label">No metadata</span>
+            <span class="tally-value" id="tallyNoMeta">0</span>
+          </div>
+        </div>
+
+        <div class="notice">
+          <svg class="icon notice-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+               stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="2.25" y="2.25" width="11.5" height="11.5" rx="2.5"/><path d="M5 6.25h6M5 9.25h4"/>
+          </svg>
+          <div>
+            <p class="notice-label">Good to know</p>
+            <p class="notice-body">
+              You can switch to another tab &mdash; this keeps running. Closing the tab
+              stops it, and no file will be half-written.
+            </p>
+          </div>
+        </div>
+
+        <!-- "Cancel" alone would imply losing the work already done. It doesn't. -->
+        <button type="button" class="btn btn-secondary" id="stopButton">Stop</button>
+      </div>
+    </section>
+
+
+    <!-- -------------------------------------------------------------------
+         SCREEN 3 - the answer.
+         Three tiles carry every fact needed to decide what to do. The table of
+         every file is a drill-down, closed by default. Someone who never opens
+         it has been served properly.
+         ------------------------------------------------------------------- -->
+    <section id="phaseDone" hidden>
+
+      <div class="tiles" id="tiles"></div>
+
+      <!-- The order below is deliberate: the notice is read BEFORE the user
+           decides whether to go looking through the table. -->
+      <div id="resultsNotices"></div>
+
+      <!-- The timezone disclosure. This wording is load-bearing and is also read
+           straight out of this element by the CSV report, so the report and the
+           screen can never drift apart. Do not reword it. -->
+      <div class="notice">
+        <svg class="icon notice-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="2.25" y="2.25" width="11.5" height="11.5" rx="2.5"/><path d="M5 6.25h6M5 9.25h4"/>
+        </svg>
+        <div>
+          <p class="notice-label">Good to know</p>
+          <p class="notice-body timezone-note">
+            Dates are converted to the timezone of the place the photo was taken, worked out
+            from its GPS location. Daylight saving is taken into account. Photos with no GPS
+            location in their sidecar are written in UTC, exactly as Google stored them.
+            Your computer's own timezone is never used.
+          </p>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn btn-primary" id="downloadButton">
+          <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+               stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 2v8"/><path d="M4.5 7 8 10.5 11.5 7"/><path d="M2.5 13h11"/>
+          </svg>
+          <span id="downloadLabel">Download fixed photos</span>
+        </button>
+        <button type="button" class="btn btn-secondary" id="previewReportButton">
+          <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+               stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 2v8"/><path d="M4.5 7 8 10.5 11.5 7"/><path d="M2.5 13h11"/>
+          </svg>
+          Preview report
+        </button>
+        <button type="button" class="btn btn-secondary" id="resultsReportButton" disabled>
+          <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+               stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 2v8"/><path d="M4.5 7 8 10.5 11.5 7"/><path d="M2.5 13h11"/>
+          </svg>
+          Results report
+        </button>
+        <button type="button" class="btn btn-secondary" id="startOverButton">Start over</button>
+      </div>
+
+      <p class="help-text">
+        Both reports are .csv files you can open in any spreadsheet, one row per file.
+        The <strong>preview report</strong> lists what was found and the date this tool
+        <em>will</em> write into each photo &mdash; worth checking before a big download.
+        The <strong>results report</strong> lists what it actually wrote, so it only becomes
+        available once you have downloaded your photos.
+      </p>
+
+      <p class="progress" id="progress"></p>
+      <div id="skipped"></div>
+
+      <p class="disclosure-row">
+        <a href="#" class="disclosure" id="toggleTable" aria-expanded="false" aria-controls="tableWrap">
+          <span class="chevron" aria-hidden="true"></span>
+          <span id="toggleTableLabel">Show all files</span>
+        </a>
+      </p>
+
+      <div id="tableWrap" hidden>
+        <div class="chips" id="chips"></div>
+        <div class="table-scroll">
+          <table id="results">
+            <thead>
+              <tr>
+                <th class="col-status">Status</th>
+                <th class="col-file">File</th>
+                <th class="col-date">Date found</th>
+                <th class="col-date">Date written</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+        <div class="pager" id="pager"></div>
+      </div>
+    </section>
+
+
+    <!-- ===================================================================
+         SECTION 3 - THE EXPLANATIONS
+         Native <details> and <summary>. No JavaScript anywhere in here: the
+         browser does the opening, the closing and the keyboard handling.
+         =================================================================== -->
+    <div class="explain">
+
+      <details open>
+        <summary>
+          <span class="chevron" aria-hidden="true"></span>
+          <h2>Why do all my photos say today's date?</h2>
+        </summary>
+        <div class="explain-body">
+          <p>
+            Every photo file has a hidden section inside it — the EXIF data — that stores
+            when the picture was taken and where you were standing. It's how your phone
+            builds a timeline and how "photos from Paris" search works.
+          </p>
+          <p>
+            When Google exports your library, it doesn't leave that information inside the
+            photos. It pulls the date and location out and writes them into separate .json
+            files sitting next to each image.
+          </p>
+          <p>
+            The photos themselves come out blank. Every app you open them in — Apple Photos,
+            Lightroom, Windows Explorer, your Mac's Finder — asks the file when it was taken,
+            gets no answer, and falls back to the day you downloaded it.
+          </p>
+          <p>
+            The result: twenty years of birthdays, holidays and ordinary Tuesdays all
+            collapse into a single day. The information isn't lost. It's just sitting in the
+            wrong file.
+          </p>
+          <p>
+            Save the Dates reads those .json files and writes the dates and coordinates back
+            inside your photos, where every other app can find them.
+          </p>
+        </div>
+      </details>
+
+      <details>
+        <summary>
+          <span class="chevron" aria-hidden="true"></span>
+          <h2>What is Google Takeout, and why would I use it?</h2>
+        </summary>
+        <div class="explain-body">
+          <p>
+            Google Takeout is Google's official tool for downloading a copy of your own
+            data — photos, email, contacts, documents. It's free, and it's at
+            <a href="https://takeout.google.com" target="_blank" rel="noopener noreferrer">takeout.google.com</a>.
+          </p>
+          <p>Most people end up there for one of these reasons:</p>
+          <ul>
+            <li>You stopped paying for Google One and want your photos before the storage runs out</li>
+            <li>You're switching to Apple Photos, iCloud, Immich, Ente, or just a hard drive</li>
+            <li>You want a backup that doesn't depend on one company's account staying open</li>
+            <li>You're consolidating a family archive from several accounts into one place</li>
+          </ul>
+          <p>
+            Takeout is the only way to get your full-resolution originals out of Google
+            Photos in bulk. Downloading them by hand from the website caps out at a few at
+            a time.
+          </p>
+        </div>
+      </details>
+
+      <details>
+        <summary>
+          <span class="chevron" aria-hidden="true"></span>
+          <h2>How to export just your photos</h2>
+        </summary>
+        <div class="explain-body">
+          <p>
+            Takeout defaults to exporting everything in your Google account — your email,
+            your Drive, your search history, dozens of services. You almost certainly don't
+            want that. Here's how to get photos only.
+          </p>
+
+          <ol>
+            <li>
+              <strong>Go to takeout.google.com and check your account</strong>
+              <p>
+                Look at the profile picture in the top right. Takeout exports whichever
+                account you're signed into. If you have more than one, make sure it's the
+                right one.
+              </p>
+            </li>
+            <li>
+              <strong>Click "Deselect all"</strong>
+              <p>
+                It's at the top of the long list of services. This is the single most
+                important click on the page. Everything is checked by default.
+              </p>
+            </li>
+            <li>
+              <strong>Scroll down and check "Google Photos" only</strong>
+              <p>
+                The list is alphabetical and long. Google Photos is roughly two-thirds of
+                the way down. Check that one box and nothing else.
+              </p>
+            </li>
+            <li>
+              <strong>Leave the format settings alone</strong>
+              <p>
+                You'll see "Multiple formats" and "All photo albums included." The defaults
+                are correct. Don't change them. If you want to try this tool out first,
+                click "All photo albums included" and pick one small album instead. A
+                30-photo export finishes in minutes; a full library can take days.
+              </p>
+            </li>
+            <li>
+              <strong>Click "Next step" at the very bottom</strong>
+            </li>
+            <li>
+              <strong>Choose your delivery settings</strong>
+              <p>
+                Destination: "Send download link via email" — this is the simplest option.
+                Frequency: "Export once." File type: .zip. Size: 2 GB. Google splits your
+                library across multiple files at whatever size you pick. Smaller files mean
+                more of them, but each one downloads and unzips faster and is less likely to
+                fail partway through. If you're not sure, pick 2 GB.
+              </p>
+            </li>
+            <li>
+              <strong>Click "Create export"</strong>
+            </li>
+            <li>
+              <strong>Wait for the email</strong>
+              <p>
+                A small album can be ready in minutes. A few thousand photos usually takes a
+                few hours. A very large library can take one to two days. Google emails you
+                when it's done.
+              </p>
+            </li>
+            <li>
+              <strong>Download every single file before you unzip anything</strong>
+              <p>
+                If Google gives you seven files, download all seven first. A photo's date can
+                live in one file while the photo lives in another, and unzipping a partial
+                set gives you a partial result. The download links expire after about a week.
+                If you miss the window, you have to start the export over.
+              </p>
+            </li>
+            <li>
+              <strong>Unzip them all into one folder</strong>
+              <p>
+                Double-click each .zip file. Put all the contents in the same place. You'll
+                end up with a folder called Takeout containing a folder called Google Photos.
+              </p>
+            </li>
+          </ol>
+
+          <div class="notice">
+            <svg class="icon notice-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                 stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="2.25" y="2.25" width="11.5" height="11.5" rx="2.5"/><path d="M5 6.25h6M5 9.25h4"/>
+            </svg>
+            <div>
+              <p class="notice-body">
+                Don't delete the .json files. They look like junk. They are not junk — they
+                are where Google put your dates and locations, and this tool needs them.
+              </p>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <details>
+        <summary>
+          <span class="chevron" aria-hidden="true"></span>
+          <h2>How to save the dates back to your Google Photos export</h2>
+        </summary>
+        <div class="explain-body">
+          <ol>
+            <li>Unzip your Google Takeout download — you need the folder, not the zip</li>
+            <li>Click "Choose folder" and pick that unzipped Takeout folder</li>
+            <li>Check what it found — every file is listed with what will happen to it, before anything is written</li>
+            <li>Click "Download fixed photos" and save the zip that comes back</li>
+          </ol>
+          <p>
+            Your Google Takeout folder is never modified. Save the Dates hands you a new
+            copy with the dates restored.
+          </p>
+        </div>
+      </details>
+
+      <details>
+        <summary>
+          <span class="chevron" aria-hidden="true"></span>
+          <h2>Your photos never leave your computer</h2>
+        </summary>
+        <div class="explain-body">
+          <p>
+            There is no server. There is no upload. Everything happens inside your browser
+            on your own machine — the same way a calculator app works offline.
+          </p>
+          <p>
+            You can verify this yourself: disconnect from the internet after the page loads.
+            The tool keeps working.
+          </p>
+          <p>
+            No account. No sign-up. No email address. No tracking. No ads. The code is open
+            source and you can read all of it.
+          </p>
+        </div>
+      </details>
+
+      <details>
+        <summary>
+          <span class="chevron" aria-hidden="true"></span>
+          <h2>What this doesn't do (yet)</h2>
+        </summary>
+        <div class="explain-body">
+          <ul>
+            <li>
+              JPEG only. HEIC, PNG and video aren't handled yet — but you don't have to
+              separate them out. Point Save the Dates at the whole folder: it fixes the
+              JPEGs, lists everything else so you can see what was left, and doesn't touch
+              those files.
+            </li>
+            <li>You have to unzip first. It reads folders, not .zip files.</li>
+            <li>
+              Photos with no location get UTC. Google stores every capture time in UTC, and
+              photo files store plain local time with no timezone attached. When a photo has
+              GPS in its .json file, Save the Dates works out the timezone of the place it
+              was taken and converts to the clock time there, daylight saving included. When
+              it has no GPS there is nothing to work that out from, so the time is written in
+              UTC exactly as Google stored it — which can read a few hours off.
+            </li>
+            <li>
+              Very large libraries may struggle. Everything runs in your browser's memory. If
+              you have tens of thousands of photos, do it in batches — one year at a time.
+            </li>
+          </ul>
+          <p>
+            If you need HEIC, video, or a 200 GB library handled in one pass, there are paid
+            desktop apps that do it well. This is the free option for the common case.
+          </p>
+        </div>
+      </details>
+
+      <details>
+        <summary>
+          <span class="chevron" aria-hidden="true"></span>
+          <h2>Questions</h2>
+        </summary>
+        <div class="explain-body">
+          <dl>
+            <dt>Why bother putting the dates back at all?</dt>
+            <dd>
+              Because almost everything you do with photos afterwards depends on them. With
+              the dates back, your library sorts into the order things actually happened,
+              "on this day" memories start working again, and searching for a year or a
+              place finds something. Apple Photos, iCloud, Immich and Ente all build their
+              timelines from this data. Without it, twenty years of photos is one enormous
+              pile stamped with the day you clicked download — everything is there, and you
+              can't find any of it.
+            </dd>
+
+            <dt>Is Save the Dates really free?</dt>
+            <dd>Yes. No cap, no trial, no paid tier, no ads. It's a portfolio project, not a business.</dd>
+
+            <dt>Do I need to install anything?</dt>
+            <dd>No. Save the Dates is a web page. Google Takeout is a website too, so neither step needs an install.</dd>
+
+            <dt>Does Save the Dates work on my phone?</dt>
+            <dd>Not well. You need to pick a folder, which phone browsers don't really do. Use a computer.</dd>
+
+            <dt>Will Save the Dates change my original photos?</dt>
+            <dd>
+              No. Save the Dates builds a new copy and hands it to you as a zip download.
+              The Google Takeout folder you picked is only read, never written to.
+            </dd>
+
+            <dt>My export is a mix of JPEGs, HEICs and videos. Do I have to sort them first?</dt>
+            <dd>
+              No — point Save the Dates at the whole Google Takeout folder. It fixes the
+              JPEGs, and every other file is listed on screen and in the report as "can't be
+              fixed" so you can see exactly what was left out. Those files aren't moved,
+              changed or deleted; they simply aren't in the download.
+            </dd>
+
+            <dt>Can I delete Google's .json files afterward?</dt>
+            <dd>
+              Once you've confirmed the dates look right in the fixed copies, yes. They are
+              Google Takeout's metadata files, not part of your photos.
+            </dd>
+
+            <dt>Why does Save the Dates say some photos are unmatched?</dt>
+            <dd>
+              Google Takeout's file naming is inconsistent — it truncates long filenames and
+              renames duplicates in ways that don't always line up with the photo they belong
+              to. Save the Dates lists every unmatched photo so you can see exactly which
+              ones need attention, rather than silently skipping them.
+            </dd>
+
+            <dt>What about photos I edited in Google Photos?</dt>
+            <dd>
+              Google Takeout exports those with "-edited" in the filename and no .json file
+              of their own. Save the Dates gives them the date from the original photo.
+            </dd>
+          </dl>
+        </div>
+      </details>
+
+    </div>
+
+  </main>
+
+
+  <!-- =====================================================================
+       SECTION 4 - THE FOOTER
+       ===================================================================== -->
+  <footer class="site-footer">
+    <p class="help-text">
+      Save the Dates is a free, open-source tool. It is not affiliated with, endorsed by,
+      or sponsored by Google. Google Photos™ and Google Takeout™ are trademarks of
+      Google LLC.
+    </p>
+    <p class="help-text">
+      <a href="https://github.com/Roanukz/save-the-dates" target="_blank" rel="noopener noreferrer">View the source on GitHub</a>
+    </p>
+  </footer>
+
+</div>
+
+<!-- All three libraries live in this project folder. Nothing is fetched from the
+     internet when this page runs.
+     tz-lookup.js holds a compressed map of the world's timezone boundaries, so a
+     GPS position can become a name like "Europe/London" without asking a server. -->
+<script src="vendor/piexif.js"></script>
+<script src="vendor/jszip.min.js"></script>
+<script src="vendor/tz-lookup.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

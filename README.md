@@ -6,10 +6,13 @@ A single-page browser tool that repairs Google Photos Takeout exports by reading
 JSON sidecar files and writing the original capture date and GPS position back into
 the JPEG's EXIF.
 
-**[Try it live →](https://roanukz.github.io/save-the-dates/)**  ·  **[Read the product teardown →](https://roanukz.github.io/save-the-dates/teardown.html)**
+**[Read the product teardown →](https://roanukz.github.io/save-the-dates/)**  ·  **[Try it live →](https://roanukz.github.io/save-the-dates/tool.html)**
 
-The teardown covers the problem, the evidence that it is real and recurring, the
-decisions I committed to and what each one cost, and what I would kill.
+The teardown is the site's front door, because the link that gets shared is being
+read by people evaluating the thinking, not by people with a broken export to fix.
+It covers the problem, the evidence that it is real and recurring, the decisions I
+committed to and what each one cost, and what I would kill. The tool itself is one
+click away from the top of it.
 
 ## The problem
 
@@ -26,8 +29,8 @@ This puts it back.
 
 ## Running it
 
-Open [the hosted version](https://roanukz.github.io/save-the-dates/), or download this
-repository and open `index.html` in a browser. That is the whole install.
+Open [the hosted version](https://roanukz.github.io/save-the-dates/tool.html), or download
+this repository and open `tool.html` in a browser. That is the whole install.
 
 There is no server, no build step and no package manager. The three libraries in
 `vendor/` are committed to this repository and loaded from disk, so the page works with
@@ -71,13 +74,14 @@ These are deliberate and are not up for quiet erosion:
 
 | Path | What it is |
 |---|---|
-| `index.html` | The entire UI |
+| `index.html` | The product teardown — the site's front door, styled from `tokens.css` unchanged |
+| `tool.html` | The entire UI |
 | `app.js` | All logic — matching, sidecar parsing, timezone resolution, EXIF writing, reports |
 | `style.css` | Components |
 | `tokens.css` | The design system's raw values; portable, nothing app-specific |
 | `DESIGN.md`, `design/` | The reasoning behind the design system |
 | `contrast-check.html` | Recomputes every contrast ratio in the system, in the browser |
-| `teardown.html` | The product teardown, styled from `tokens.css` unchanged |
+| `teardown.html` | Redirect to `/` — the teardown's old URL is printed on a CV already in circulation |
 | `og-image.svg` | Source for the social share card — edit this one |
 | `og-image.png` | The rendered share card, committed so nothing has to build |
 | `test-fixtures/` | Sidecar-naming cases |
