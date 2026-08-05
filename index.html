@@ -20,6 +20,17 @@
 <meta name="twitter:card" content="summary_large_image">
 
 <link rel="stylesheet" href="tokens.css">
+
+<!-- A refresh should put you back at the top of the essay, not wherever you had
+     scrolled to. Browsers restore the old scroll position on reload by default,
+     which on a long page drops the reader into the middle of a section with no
+     heading in view and looks like the page loaded wrong. This has to run in the
+     head, before the browser has a chance to restore anything. Deep links to a
+     section still work: fragment scrolling is separate from restoration. -->
+<script>
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+</script>
+
 <style>
 /* ===========================================================================
    Teardown page. Uses tokens.css unchanged — this page is itself the proof

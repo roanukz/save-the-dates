@@ -21,6 +21,13 @@
   <!-- Both stylesheets are local files. Nothing is fetched from the internet. -->
   <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="style.css">
+
+  <!-- A refresh clears everything the tool was holding, so it must also start at
+       the top. Otherwise you reload and land halfway down a results table that
+       no longer exists. Set in the head, before the browser restores anything. -->
+  <script>
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  </script>
 </head>
 <body>
 

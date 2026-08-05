@@ -92,6 +92,11 @@ h2 {
   cursor: pointer;
 }
 
+/* A .btn can be an <a> as well as a <button> now that the hero carries links.
+   Without this the global underline on links turns a button into an underlined
+   button, which reads as neither one thing nor the other. */
+a.btn, a.btn:hover { text-decoration: none; }
+
 /* One focus ring on every control type in the system. :focus-visible only,
    so it appears for keyboards and not for mouse clicks. Never removed. */
 .btn:focus-visible,
@@ -886,6 +891,16 @@ td.col-date { text-align: right; color: var(--text-body); }
   font-size: var(--size-13); line-height: var(--lh-13);
   letter-spacing: var(--ls-13);
   color: var(--text-muted);
+  margin: 0 0 var(--space-16);
+}
+
+/* The same call-to-action pair the teardown carries, so a reader arriving on
+   either page of this project finds the other one in the same place. Matches
+   the teardown's .cta-row rule exactly; both files style it from tokens. */
+.cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
   margin: 0 0 var(--space-32);
 }
 
