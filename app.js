@@ -2087,7 +2087,7 @@ function tableRowHtml(entry) {
  * all - saying "no" for either would be inventing a fact.
  */
 function yesNoCell(row, field) {
-  if (!row || !row.existing) return '<span class="empty">&mdash;</span>';
+  if (!row || !row.existing) return '<span class="empty">n/a</span>';
   if (!row.existing.checked) return '<span class="empty">not checked</span>';
   if (!row.existing.known) return '<span class="empty">couldn\'t read</span>';
   return row.existing[field] ? 'yes' : '<span class="empty">no</span>';
@@ -2136,7 +2136,7 @@ function drawPager(totalRows, pages) {
   pagerBox.innerHTML =
     '<button type="button" class="page-btn" id="prevPage"' +
       (currentPage === 1 ? ' disabled' : '') + '>Previous</button>' +
-    '<span>' + formatCount(first) + '&ndash;' + formatCount(last) +
+    '<span>' + formatCount(first) + ' to ' + formatCount(last) +
       ' of ' + formatCount(totalRows) + '</span>' +
     '<button type="button" class="page-btn" id="nextPage"' +
       (currentPage === pages ? ' disabled' : '') + '>Next</button>';
