@@ -77,7 +77,19 @@ These are deliberate and are not up for quiet erosion:
 | `tokens.css` | The design system's raw values; portable, nothing app-specific |
 | `DESIGN.md`, `design/` | The reasoning behind the design system |
 | `contrast-check.html` | Recomputes every contrast ratio in the system, in the browser |
+| `teardown.html` | The product teardown, styled from `tokens.css` unchanged |
+| `og-image.svg` | Source for the social share card — edit this one |
+| `og-image.png` | The rendered 1200×627 share card, committed so nothing has to build |
 | `test-fixtures/` | Sidecar-naming cases |
+
+The share card is committed as a PNG so serving the site still needs no build
+step. To regenerate it after editing the SVG:
+
+```
+soffice --headless \
+  --convert-to 'png:draw_png_Export:{"PixelWidth":{"type":"long","value":1200},"PixelHeight":{"type":"long","value":627}}' \
+  og-image.svg
+```
 
 ## Testing
 

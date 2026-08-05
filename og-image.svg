@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Social share card. 1200x627, the Open Graph / Twitter large-summary size.
+  og-image.png is rendered from this file; edit here, not there.
+
+  Colours are the role values from tokens.css dark mode, copied literally
+  because an SVG cannot read a stylesheet. If a ramp changes, change it here.
+  The accent ramp is deliberately unused - it is reserved for measurement.
+
+  All text sits inside the 1120x547 safe area (a 40px inset) because LinkedIn
+  crops the edges. Nothing is set below 34px: the card renders about 300px
+  wide in a feed, so anything smaller would be unreadable.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="627" viewBox="0 0 1200 627">
+
+  <rect width="1200" height="627" fill="#10141a"/>
+
+  <!-- ============ left: name and promise ============ -->
+
+  <text x="80" y="258"
+        font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+        font-size="82" font-weight="700" fill="#f7f8f9">Save the Dates</text>
+
+  <rect x="80" y="290" width="132" height="6" rx="3" fill="#4c9bb0"/>
+
+  <text x="80" y="374"
+        font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+        font-size="36" font-weight="400" fill="#c8ced7">Fix wrong dates &amp; timezones</text>
+  <text x="80" y="422"
+        font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+        font-size="36" font-weight="400" fill="#c8ced7">on your photos &#8212; right in your browser</text>
+
+  <!-- ============ right: a photo whose date got corrected ============ -->
+
+  <rect x="800" y="160" width="320" height="330" rx="14" fill="#1b2028" stroke="#3f4653" stroke-width="2"/>
+
+  <!-- the photo itself -->
+  <rect x="824" y="184" width="272" height="175" rx="8" fill="#2b313b"/>
+  <circle cx="1042" cy="228" r="21" fill="#4c9bb0"/>
+  <path d="M 824 359 L 906 268 L 966 330 L 1006 292 L 1096 359 Z" fill="#545c6b"/>
+  <path d="M 824 359 L 884 300 L 944 359 Z" fill="#6f7887"/>
+
+  <!-- wrong date, struck through -->
+  <text x="824" y="410"
+        font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+        font-size="34" font-weight="500" fill="#d96450">Aug 4, 2026</text>
+  <line x1="820" y1="399" x2="1012" y2="399" stroke="#d96450" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- the real capture date -->
+  <text x="824" y="458"
+        font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+        font-size="34" font-weight="700" fill="#4aa576">Jun 12, 2019</text>
+  <path d="M 1036 445 L 1048 457 L 1072 433"
+        fill="none" stroke="#4aa576" stroke-width="6"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+</svg>
