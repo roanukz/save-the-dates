@@ -1,6 +1,6 @@
 # Save the Dates
 
-Your Takeout export lands with every file stamped today. This puts the real dates back.
+Your Google Photos export using their official tool Takeout lands with every file stamped today. This tool puts the real dates back.
 
 A single-page browser tool that gives every file in a Google Photos Takeout export its
 real capture date, and fills in the EXIF of the JPEGs that are genuinely missing one.
