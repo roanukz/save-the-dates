@@ -61,14 +61,68 @@
        app.js is the whole app, so when it loads it expects to find the
        app's screen and its EXIF library. This page has neither, so these
        stand-ins stop it complaining. They do nothing else.
+
+       They are built from the list app.js actually asks for rather than
+       written by hand, because the hand-written version went stale: it was
+       missing most of the screen, so app.js threw partway through loading
+       every time this page opened. The tests still passed, since the
+       function under test is defined long before the throw, which is
+       exactly why nobody noticed. If app.js starts using a new element and
+       this page throws again, add it here.
        ------------------------------------------------------------------ -->
   <div hidden>
     <input type="file" id="folderPicker">
+    <input type="file" id="zipPicker">
     <p id="summary"></p>
     <table id="results"><tbody id="resultsBody"></tbody></table>
     <div id="fixPanel"><button id="fixButton"></button></div>
     <p id="progress"></p>
     <div id="skipped"></div>
+
+    <div id="dropZone">
+      <div id="dzIdle"></div>
+      <div id="dzDragover"></div>
+      <div id="dzRejected"></div>
+      <div id="dzNoPicker"></div>
+      <div id="dzIncomplete">
+        <p id="dzIncompleteHeadline"></p>
+        <p id="dzIncompleteBody"></p>
+      </div>
+      <p id="dzDragName"></p>
+      <p id="dzRejectHeadline"></p>
+      <p id="dzRejectBody"></p>
+      <p id="dzRejectName"></p>
+    </div>
+    <div id="folderNotice"></div>
+
+    <button id="chooseButton"></button>
+    <button id="chooseZipButton"></button>
+    <button id="tryAgainButton"></button>
+    <button id="incompleteBackButton"></button>
+    <button id="incompleteGoButton"></button>
+    <button id="stopButton"></button>
+    <button id="downloadButton"></button>
+    <button id="previewReportButton"></button>
+    <button id="resultsReportButton"></button>
+    <button id="startOverButton"></button>
+    <button id="toggleTable"><span id="toggleTableLabel"></span></button>
+    <button id="prevPage"></button>
+    <button id="nextPage"></button>
+
+    <div id="phaseIdle"></div>
+    <div id="phaseWorking"></div>
+    <div id="phaseDone"></div>
+
+    <div id="workHeading"></div><div id="workEta"></div><div id="workCount"></div>
+    <div id="workBar"></div><div id="tickerFile"></div><div id="workElapsed"></div>
+    <div id="tallyHaveDate"></div><div id="tallyNeedDate"></div><div id="tallyNoDate"></div>
+
+    <div id="tiles"></div><div id="scanSummary"></div><div id="clusterNotice"></div>
+    <div id="zipNotice"></div><div id="resultsNotices"></div>
+    <div id="chips"></div><div id="pager"></div><div id="tableWrap"></div>
+    <span id="downloadLabel"></span>
+    <input type="checkbox" id="onlyMissing">
+    <input type="checkbox" id="googleDates">
   </div>
 
   <script>

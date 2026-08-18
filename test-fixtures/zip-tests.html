@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zip reading tests</title>
+  <style>
+    /* Always draw this page light, so it stays readable if your browser is set to dark mode. */
+    :root { color-scheme: light; }
+    html, body { background: #fff; }
+    body { font-family: -apple-system, system-ui, sans-serif; margin: 2rem; max-width: 1100px; color: #222; }
+    h1 { font-size: 1.4rem; }
+    h2 { font-size: 1rem; margin: 1.6rem 0 0.4rem; }
+    .intro { color: #555; line-height: 1.5; max-width: 46rem; }
+    .banner { font-weight: 600; padding: 0.7rem 1rem; border-radius: 6px; font-size: 1.05rem; }
+    .banner-ok { background: #e6f5e9; color: #14622a; }
+    .banner-bad { background: #fdeaea; color: #8a1414; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.82rem; margin-top: 0.4rem; }
+    th, td { border-bottom: 1px solid #e3e3e3; padding: 0.45rem 0.5rem; text-align: left; vertical-align: top; }
+    th { background: #f4f4f4; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    tr.fail { background: #fdeaea; }
+    td.result { font-weight: 700; white-space: nowrap; }
+    .pass { color: #14622a; }
+    .fail-text { color: #8a1414; }
+    code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.95em; word-break: break-all; }
+    .note { color: #7a5c00; background: #fff8e1; padding: 0.2rem 0.4rem; border-radius: 4px; display: inline-block; }
+  </style>
+</head>
+<body>
+
+  <h1>Zip reading tests</h1>
+
+  <p class="intro">
+    This page runs the real <code>TakeoutZip.readZip()</code> out of <code>../zip.js</code> against
+    archives it builds in your browser while you watch. Nothing is uploaded, nothing is downloaded,
+    and no sample photo library is committed to this repository, because a real Takeout export is
+    personal data. Every archive on this page is made here, checked, and thrown away.
+  </p>
+
+  <p class="intro">
+    The thing being checked is that a file read out of a zip is <strong>byte for byte the same
+    file</strong> as the one you would get by unpacking it by hand, whichever way the zip stored
+    it, and that a zip which is damaged or incomplete says so rather than quietly returning less.
+  </p>
+
+  <p id="testBanner" class="banner">Running...</p>
+
+  <div id="sections"></div>
+
+<script src="../vendor/jszip.min.js"></script>
+<script src="../zip.js"></script>
+<script>
+// ---------------------------------------------------------------------------
+// A tiny test harness. Deliberately not a framework: this page has to keep
+// working with no build step and no install, like everything else here.
+// ---------------------------------------------------------------------------
+
+const sections = [];
+let current = null;
+let passCount = 0, failCount = 0;
+
+function section(title) { current = { title, rows: [] }; sections.push(current); }
+
+function check(what, condition, detail) {
+  if (condition) passCount++; else failCount++;
+  current.rows.push({ what, ok: !!condition, detail: detail || '' });
+}
+
+function sameBytes(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+function draw() {
+  const banner = document.getElementById('testBanner');
+  banner.className = 'banner ' + (failCount === 0 ? 'banner-ok' : 'banner-bad');
+  banner.textContent = failCount === 0
+    ? 'All ' + passCount + ' checks passed.'
+    : failCount + ' of ' + (passCount + failCount) + ' checks FAILED.';
+
+  document.getElementById('sections').innerHTML = sections.map(function (s) {
+    return '<h2>' + s.title + '</h2><table><thead><tr><th>What it checks</th>' +
+      '<th>Result</th><th>Detail</th></tr></thead><tbody>' +
+      s.rows.map(function (r) {
+        return '<tr class="' + (r.ok ? '' : 'fail') + '"><td>' + r.what + '</td>' +
+          '<td class="result ' + (r.ok ? 'pass' : 'fail-text') + '">' +
+          (r.ok ? 'PASS' : 'FAIL') + '</td><td><code>' + r.detail + '</code></td></tr>';
+      }).join('') + '</tbody></table>';
+  }).join('');
+}
+
+
+// ---------------------------------------------------------------------------
+// The pretend export. Shaped like a real one: a Takeout folder, a Google Photos
+// folder inside it, a year folder inside that, and a .json sidecar sitting next
+// to each photo.
+// ---------------------------------------------------------------------------
+
+const FOLDER = 'Takeout/Google Photos/Photos from 2015/';
+
+// A byte pattern that is long enough to survive compression and varied enough
+// that an off-by-one in the inflating would show up rather than hide.
+function madeUpPhoto(seed, length) {
+  const bytes = new Uint8Array(length);
+  for (let i = 0; i < length; i++) bytes[i] = (i * 31 + seed * 17 + (i >> 8)) & 0xff;
+  // A JPEG's first two bytes, so anything sniffing the format sees what it expects.
+  bytes[0] = 0xff; bytes[1] = 0xd8;
+  return bytes;
+}
+
+function sidecarFor(name, timestamp) {
+  return new TextEncoder().encode(JSON.stringify({
+    title: name,
+    photoTakenTime: { timestamp: String(timestamp), formatted: 'x' },
+    geoData: { latitude: 51.5074, longitude: -0.1278, altitude: 0 }
+  }));
+}
+
+const CONTENT = {};
+CONTENT[FOLDER + 'IMG_0001.JPG'] = madeUpPhoto(1, 5000);
+CONTENT[FOLDER + 'IMG_0002.JPG'] = madeUpPhoto(2, 131);        // deliberately tiny
+CONTENT[FOLDER + 'IMG_0001.JPG.supplemental-metadata.json'] = sidecarFor('IMG_0001.JPG', 1434280953);
+CONTENT[FOLDER + 'IMG_0002.JPG.supplemental-metadata.json'] = sidecarFor('IMG_0002.JPG', 1434280954);
+
+/** Builds a zip of the pretend export, either compressed or stored verbatim. */
+async function buildZip(compress) {
+  const zip = new JSZip();
+  for (const path of Object.keys(CONTENT)) {
+    zip.file(path, CONTENT[path], { date: new Date(2015, 5, 14, 11, 22, 32) });
+  }
+  const blob = await zip.generateAsync({
+    type: 'blob',
+    compression: compress ? 'DEFLATE' : 'STORE'
+  });
+  return new File([blob], compress ? 'takeout-deflated.zip' : 'takeout-stored.zip');
+}
+
+
+/**
+ * Rewrites a small archive so it uses the wide, "zip64" form of the index.
+ *
+ * Google produces this form whenever a part goes over 4 GB, which the 10 GB and
+ * 50 GB split sizes do. Building a genuinely oversized archive in a browser tab
+ * to prove the code reads one is not sensible, so instead a small archive is
+ * given the same structures a large one has: the wide record, the locator that
+ * points at it, and the all-ones placeholder in the original record. That is
+ * exactly the shape the reading code has to cope with.
+ */
+async function makeZip64(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const view = new DataView(bytes.buffer);
+
+  // Find the classic record. These archives have no comment, so it is the last
+  // 22 bytes, but it is searched for rather than assumed.
+  let endAt = -1;
+  for (let i = bytes.length - 22; i >= 0; i--) {
+    if (view.getUint32(i, true) === 0x06054b50) { endAt = i; break; }
+  }
+  if (endAt < 0) throw new Error('no end-of-index record to rewrite');
+
+  const count = view.getUint16(endAt + 10, true);
+  const size = view.getUint32(endAt + 12, true);
+  const offset = view.getUint32(endAt + 16, true);
+
+  const wide = new Uint8Array(56);
+  const wideView = new DataView(wide.buffer);
+  wideView.setUint32(0, 0x06064b50, true);
+  wideView.setBigUint64(4, BigInt(44), true);      // size of the rest of this record
+  wideView.setUint16(12, 45, true);
+  wideView.setUint16(14, 45, true);
+  wideView.setBigUint64(24, BigInt(count), true);
+  wideView.setBigUint64(32, BigInt(count), true);
+  wideView.setBigUint64(40, BigInt(size), true);
+  wideView.setBigUint64(48, BigInt(offset), true);
+
+  const locator = new Uint8Array(20);
+  const locatorView = new DataView(locator.buffer);
+  locatorView.setUint32(0, 0x07064b50, true);
+  locatorView.setBigUint64(8, BigInt(endAt), true);   // the wide record goes here
+  locatorView.setUint32(16, 1, true);
+
+  // The classic record is kept, holding the placeholder that says "look wider".
+  const classic = bytes.slice(endAt);
+  const classicView = new DataView(classic.buffer, classic.byteOffset);
+  classicView.setUint16(10, 0xffff, true);
+  classicView.setUint32(16, 0xffffffff, true);
+
+  const out = new Uint8Array(endAt + wide.length + locator.length + classic.length);
+  out.set(bytes.subarray(0, endAt), 0);
+  out.set(wide, endAt);
+  out.set(locator, endAt + wide.length);
+  out.set(classic, endAt + wide.length + locator.length);
+
+  return new File([out], 'takeout-large.zip');
+}
+
+
+// ---------------------------------------------------------------------------
+// The checks
+// ---------------------------------------------------------------------------
+
+/** Every file must come back exactly as it went in, whichever way it was stored. */
+async function checkRoundTrip(title, file) {
+  section(title);
+
+  let result;
+  try {
+    result = await TakeoutZip.readZip(file);
+  } catch (e) {
+    check('the archive opens', false, e.message);
+    return;
+  }
+
+  const wantedPaths = Object.keys(CONTENT).sort();
+  const gotPaths = result.files.map(f => f.webkitRelativePath).sort();
+
+  check('every file is found, and folder entries are not counted as files',
+    JSON.stringify(gotPaths) === JSON.stringify(wantedPaths),
+    gotPaths.length + ' files');
+  check('nothing had to be skipped', result.problems.length === 0,
+    result.problems.join(' / ') || 'no problems');
+
+  for (const entry of result.files) {
+    const want = CONTENT[entry.webkitRelativePath];
+    if (!want) continue;
+    const shortName = entry.name;
+
+    check(shortName + ': size matches', entry.size === want.length,
+      entry.size + ' vs ' + want.length);
+
+    const whole = new Uint8Array(await entry.arrayBuffer());
+    check(shortName + ': every byte matches the original', sameBytes(whole, want),
+      whole.length + ' bytes read');
+
+    // The scanner reads a prefix to look for metadata, so that path matters most.
+    const head = new Uint8Array(await entry.slice(0, 64).arrayBuffer());
+    check(shortName + ': the first 64 bytes match', sameBytes(head, want.subarray(0, 64)));
+
+    // A window that starts partway in exercises the skip-then-copy arithmetic.
+    const middle = new Uint8Array(await entry.slice(100, 180).arrayBuffer());
+    check(shortName + ': a window from the middle matches',
+      sameBytes(middle, want.subarray(100, 180)));
+
+    // Asking past the end must give back what exists, not throw and not pad.
+    const past = new Uint8Array(await entry.slice(want.length - 8, want.length + 4096).arrayBuffer());
+    check(shortName + ': reading past the end stops at the end',
+      sameBytes(past, want.subarray(want.length - 8)));
+
+    const stamp = new Date(entry.lastModified);
+    check(shortName + ': keeps the date stored in the zip, not today',
+      stamp.getFullYear() === 2015 && stamp.getMonth() === 5 && stamp.getDate() === 14,
+      isNaN(entry.lastModified) ? 'no date' : stamp.toDateString());
+
+    if (entry.name.endsWith('.json')) {
+      const parsed = JSON.parse(await entry.text());
+      check(shortName + ': reads back as the JSON it was',
+        !!(parsed && parsed.photoTakenTime && parsed.photoTakenTime.timestamp),
+        parsed.photoTakenTime && parsed.photoTakenTime.timestamp);
+    }
+  }
+}
+
+
+async function checkRejections() {
+  section('Damaged, empty and not-a-zip');
+
+  async function mustRefuse(what, file, expected) {
+    try {
+      await TakeoutZip.readZip(file);
+      check(what, false, 'it was accepted');
+    } catch (e) {
+      check(what, expected.test(e.message), e.message);
+    }
+  }
+
+  await mustRefuse('a file that is not a zip is refused, in plain words',
+    new File([new Uint8Array(2048)], 'holiday-photos.zip'),
+    /does not look like a .zip file/);
+
+  await mustRefuse('an empty file is refused',
+    new File([new Uint8Array(0)], 'empty.zip'),
+    /does not look like a .zip file/);
+
+  const good = await buildZip(false);
+  const half = new Uint8Array(await good.arrayBuffer()).subarray(0, 300);
+  await mustRefuse('a download that stopped halfway is refused',
+    new File([half], 'half-downloaded.zip'),
+    /does not look like a .zip file|did not finish/);
+
+  const emptyZip = new File([await new JSZip().generateAsync({ type: 'blob' })], 'nothing.zip');
+  await mustRefuse('a zip with nothing in it says so',
+    emptyZip, /nothing in it/);
+}
+
+
+async function checkHousekeeping() {
+  section('What gets left out, and reading the date');
+
+  const skip = TakeoutZip._internals.shouldSkip;
+  check('folder entries are not files', skip('Takeout/'), 'Takeout/');
+  check("macOS's __MACOSX folder is ignored", skip('__MACOSX/IMG_1.JPG'), '__MACOSX/IMG_1.JPG');
+  check('.DS_Store is ignored', skip('Takeout/.DS_Store'), 'Takeout/.DS_Store');
+  check('macOS resource forks are ignored', skip('Takeout/._IMG_1.JPG'), 'Takeout/._IMG_1.JPG');
+  check('a real photo is kept', !skip('Takeout/Google Photos/IMG_1.JPG'), 'IMG_1.JPG');
+
+  const dosTime = TakeoutZip._internals.dosTimeToMillis;
+  const decoded = new Date(dosTime(((2015 - 1980) << 9) | (6 << 5) | 14, (11 << 11) | (22 << 5) | 16));
+  check('a stored date decodes to the right day',
+    decoded.getFullYear() === 2015 && decoded.getMonth() === 5 && decoded.getDate() === 14,
+    decoded.toDateString());
+  check('a stored time decodes to the right minute',
+    decoded.getHours() === 11 && decoded.getMinutes() === 22,
+    decoded.toTimeString().slice(0, 5));
+  check('a zip that recorded no date says unknown rather than 1980',
+    isNaN(dosTime(0, 0)), 'NaN');
+}
+
+
+/**
+ * The case the old instructions warned about: Google splits one library across
+ * numbered parts, and a photo can be in a different part from the .json holding
+ * its date. Reading the parts together has to put them back in the same folder.
+ */
+async function checkSplitExport() {
+  section('An export split across parts');
+
+  const photosZip = new JSZip();
+  const sidecarsZip = new JSZip();
+  for (const path of Object.keys(CONTENT)) {
+    (path.endsWith('.json') ? sidecarsZip : photosZip)
+      .file(path, CONTENT[path], { date: new Date(2015, 5, 14, 11, 22, 32) });
+  }
+
+  const partOne = new File([await photosZip.generateAsync({ type: 'blob' })],
+    'takeout-20150614T000000Z-001.zip');
+  const partTwo = new File([await sidecarsZip.generateAsync({ type: 'blob' })],
+    'takeout-20150614T000000Z-002.zip');
+
+  const one = await TakeoutZip.readZip(partOne);
+  const two = await TakeoutZip.readZip(partTwo);
+  const together = one.files.concat(two.files);
+
+  check('the photos are in one part and their dates in the other',
+    one.files.length === 2 && two.files.length === 2,
+    one.files.length + ' and ' + two.files.length);
+
+  const folders = new Set(together.map(f => f.webkitRelativePath.replace(/[^/]+$/, '')));
+  check('read together, both halves land in the same folder',
+    folders.size === 1, Array.from(folders).join(' | '));
+
+  // The same check the tool itself does before it starts work.
+  const missing = findMissingPartsForTest(['takeout-x-001.zip', 'takeout-x-003.zip']);
+  check('a gap in the part numbers is noticed', missing.length === 1 && missing[0] === 2,
+    'missing part ' + missing.join(', '));
+
+  const none = findMissingPartsForTest(['takeout-x-001.zip', 'takeout-x-002.zip']);
+  check('a complete set reports nothing missing', none.length === 0, 'none');
+
+  const single = findMissingPartsForTest(['takeout-x-001.zip']);
+  check('one part on its own is not treated as a gap', single.length === 0, 'none');
+
+  const unnumbered = findMissingPartsForTest(['my-photos.zip', 'more-photos.zip']);
+  check('zips that are not a numbered set are left alone',
+    unnumbered.length === 0, 'none');
+}
+
+/**
+ * The same rule the tool uses, repeated here so this page can be opened on its
+ * own without app.js. If the two ever disagree, the tool is the one that counts
+ * and this copy is the bug.
+ */
+function findMissingPartsForTest(names) {
+  const groups = new Map();
+  for (const name of names) {
+    const match = /^(.*?)-(\d+)\.zip$/i.exec(name);
+    if (!match) continue;
+    if (!groups.has(match[1])) groups.set(match[1], []);
+    groups.get(match[1]).push(Number(match[2]));
+  }
+  const missing = [];
+  for (const [, numbers] of groups) {
+    if (numbers.length < 2) continue;
+    const highest = Math.max.apply(null, numbers);
+    const have = new Set(numbers);
+    for (let n = 1; n <= highest; n++) if (!have.has(n)) missing.push(n);
+  }
+  return missing;
+}
+
+
+/**
+ * The checks that exist because a damaged download must never be presented as a
+ * repaired library. Each one takes a good archive and breaks it on purpose in a
+ * way a real bad download could, then insists the reader notices.
+ */
+async function checkDamageIsCaught() {
+  section('Damage is noticed rather than passed on');
+
+  const crc = TakeoutZip._internals.crc32;
+  check('the checksum matches the published value for "123456789"',
+    crc(new TextEncoder().encode('123456789')) === 0xcbf43926,
+    '0x' + crc(new TextEncoder().encode('123456789')).toString(16));
+
+  async function bytesOf(file) { return new Uint8Array(await file.arrayBuffer()); }
+
+  function findEndRecord(bytes) {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    for (let i = bytes.length - 22; i >= 0; i--) {
+      if (view.getUint32(i, true) === 0x06054b50) return i;
+    }
+    return -1;
+  }
+
+  async function mustRefuse(what, file, expected) {
+    try {
+      const result = await TakeoutZip.readZip(file);
+      // Some damage is only reachable when the bytes are actually read.
+      for (const entry of result.files) await entry.arrayBuffer();
+      check(what, false, 'the damage was not noticed');
+    } catch (e) {
+      check(what, expected.test(e.message), e.message);
+    }
+  }
+
+  // A flipped byte inside a photo. The index still looks perfect.
+  const stored = await bytesOf(await buildZip(false));
+  const flipped = stored.slice();
+  // Well past the headers, so it lands in file data rather than structure.
+  flipped[600] = flipped[600] ^ 0xff;
+  await mustRefuse('a photo with a flipped byte is refused, not copied into the output',
+    new File([flipped], 'damaged.zip'), /does not match the checksum/);
+
+  // The archive claims more files than it holds.
+  const miscounted = stored.slice();
+  const at = findEndRecord(miscounted);
+  new DataView(miscounted.buffer).setUint16(at + 10, 99, true);
+  await mustRefuse('an archive claiming more files than it holds is refused',
+    new File([miscounted], 'short.zip'), /says it holds .* only|could be read/);
+
+  // The wide-index placeholder with no wide index to go to. Before this was
+  // caught, the reader reported an empty zip and blamed the wrong thing.
+  const sentinel = stored.slice();
+  const at2 = findEndRecord(sentinel);
+  new DataView(sentinel.buffer).setUint32(at2 + 16, 0xffffffff, true);
+  await mustRefuse('a large-archive marker with no large-archive index says so',
+    new File([sentinel], 'sentinel.zip'), /large archive but its index is missing/);
+
+  // A damaged entry must fail EVERY time it is read, not only the first.
+  //
+  // This is here because it once did not. An earlier version kept a copy of any
+  // small entry after reading it, and stored that copy before the checksum was
+  // checked, so the first read failed correctly and every read after it returned
+  // the bad bytes as though they were good. The cache is gone; this is the test
+  // that notices if anything like it comes back.
+  const twice = await bytesOf(await buildZip(true));
+  twice[620] = twice[620] ^ 0xff;
+  const damaged = await TakeoutZip.readZip(new File([twice], 'damaged-twice.zip'));
+  let firstFailed = false, secondFailed = false;
+  for (const entry of damaged.files) {
+    try { await entry.arrayBuffer(); } catch (e) { firstFailed = true;
+      try { await entry.arrayBuffer(); } catch (e2) { secondFailed = true; }
+      break;
+    }
+  }
+  check('a damaged entry is refused on the first read', firstFailed);
+  check('the same entry is refused again on the second read, not served from a cache',
+    firstFailed && secondFailed);
+
+  // A good archive still passes all of the above.
+  const good = await TakeoutZip.readZip(await buildZip(false));
+  let allRead = true;
+  for (const entry of good.files) {
+    try { await entry.arrayBuffer(); } catch (e) { allRead = false; }
+  }
+  check('an undamaged archive passes every one of those checks', allRead,
+    good.files.length + ' files read and verified');
+}
+
+
+// --- Run everything --------------------------------------------------------
+
+(async function run() {
+  try {
+    await checkRoundTrip('Stored verbatim, which other archivers use', await buildZip(false));
+    await checkRoundTrip('Compressed, which is how Google packs everything', await buildZip(true));
+    await checkRoundTrip('The wide index a large export uses', await makeZip64(await buildZip(false)));
+    await checkSplitExport();
+    await checkRejections();
+    await checkDamageIsCaught();
+    await checkHousekeeping();
+  } catch (e) {
+    section('The tests themselves stopped');
+    check('the test page ran to the end', false, e && e.stack ? e.stack : String(e));
+  }
+  draw();
+})();
+</script>
+
+</body>
+</html>

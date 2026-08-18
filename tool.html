@@ -124,18 +124,30 @@
                stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M1.75 4.75A1.5 1.5 0 0 1 3.25 3.25h2.4l1.3 1.6h5.8a1.5 1.5 0 0 1 1.5 1.5v6.4H1.75Z"/>
           </svg>
-          <!-- This is the visible label for the folder input below. Clicking it
-               opens the same folder chooser the button does. -->
-          <label class="dz-headline" for="folderPicker">Drag your Takeout folder here</label>
-          <!-- The privacy claim sits ABOVE the button, not in fine print below it. -->
-          <p class="dz-privacy">Nothing is uploaded.</p>
-          <button type="button" class="btn btn-secondary" id="chooseButton">
-            <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-                 stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M1.75 4.75A1.5 1.5 0 0 1 3.25 3.25h2.4l1.3 1.6h5.8a1.5 1.5 0 0 1 1.5 1.5v6.4H1.75Z"/>
-            </svg>
-            Choose folder
-          </button>
+          <!-- The zip is named first because it is what Google actually sends.
+               Asking for a folder first was asking people to do a job before
+               they were allowed to start. -->
+          <label class="dz-headline" for="zipPicker">Drag the zip files Google sent you here</label>
+          <!-- The privacy claim sits ABOVE the buttons, not in fine print below. -->
+          <p class="dz-privacy">Nothing is uploaded. Your zips are opened, never changed.</p>
+          <div class="actions dz-actions">
+            <button type="button" class="btn btn-primary" id="chooseZipButton">
+              <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                   stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3.25 1.75h6.1l3.4 3.4v9.1a1 1 0 0 1-1 1h-8.5a1 1 0 0 1-1-1v-11.5a1 1 0 0 1 1-1Z"/>
+                <path d="M6.6 1.9v2.2M8 4.1v2.2M6.6 6.3v2.2M8 8.5v1.6h-1.4V8.5"/>
+              </svg>
+              Choose zip files
+            </button>
+            <button type="button" class="btn btn-secondary" id="chooseButton">
+              <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                   stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M1.75 4.75A1.5 1.5 0 0 1 3.25 3.25h2.4l1.3 1.6h5.8a1.5 1.5 0 0 1 1.5 1.5v6.4H1.75Z"/>
+              </svg>
+              Choose folder
+            </button>
+          </div>
+          <p class="dz-sub">Already unpacked them? Choose the folder instead.</p>
         </div>
 
         <!-- State: something is being dragged over -->
@@ -144,7 +156,7 @@
                stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M1.75 4.75A1.5 1.5 0 0 1 3.25 3.25h2.4l1.3 1.6h5.8a1.5 1.5 0 0 1 1.5 1.5v6.4H1.75Z"/>
           </svg>
-          <p class="dz-headline">Release to read this folder</p>
+          <p class="dz-headline">Release to start</p>
           <p class="dz-sub" id="dzDragName">&nbsp;</p>
         </div>
 
@@ -154,15 +166,48 @@
                stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="8" cy="8" r="6.25"/><path d="M5.6 5.6l4.8 4.8M10.4 5.6l-4.8 4.8"/>
           </svg>
-          <p class="dz-headline" id="dzRejectHeadline">That's a .zip file</p>
+          <p class="dz-headline" id="dzRejectHeadline">That couldn't be used</p>
           <!-- The reassurance sentence is mandatory. A rejected drop is exactly where
-               an anxious person assumes they have broken something. -->
+               an anxious person assumes they have broken something. app.js replaces both
+               of these; what is written here is only what shows if it never runs. -->
           <p class="dz-body" id="dzRejectBody">
-            Unzip it first, then drag the folder that comes out.
+            Drop the .zip files Google sent you, or the unpacked Takeout folder.
             <strong>Your file wasn't changed.</strong>
           </p>
           <p class="dz-filename" id="dzRejectName"></p>
           <button type="button" class="btn btn-secondary" id="tryAgainButton">Try again</button>
+        </div>
+
+        <!-- State: the numbered parts that were handed over have a gap in them.
+             This is asked BEFORE anything is read, because the whole value of
+             the question is saving a run that would otherwise take an hour and
+             end in a library dated from half its metadata. It is a question and
+             not a refusal: two overlapping exports, or renamed files, look like
+             a gap and are not one, and it is the user's library. -->
+        <!-- tabindex="-1" so app.js can move focus here when the question
+             appears. This state is different from the others: it interrupts,
+             and it needs an answer. Without moving focus, somebody working by
+             keyboard has just pressed a button that vanished, and somebody
+             using a screen reader is never told a question was asked. Focusing
+             the group reads the heading and body, then the two buttons are the
+             next things in the tab order. -->
+        <div class="dz-state" id="dzIncomplete" role="group"
+             aria-labelledby="dzIncompleteHeadline" tabindex="-1" hidden>
+          <svg class="dz-icon dz-icon-warn" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+               stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 2.2 14.4 13.3H1.6Z"/><path d="M8 6.4v3.1"/><path d="M8 11.5h.01"/>
+          </svg>
+          <p class="dz-headline" id="dzIncompleteHeadline">A part looks missing</p>
+          <p class="dz-body" id="dzIncompleteBody"></p>
+          <div class="actions dz-actions">
+            <button type="button" class="btn btn-secondary" id="incompleteBackButton">
+              Choose again
+            </button>
+            <button type="button" class="btn btn-secondary" id="incompleteGoButton">
+              Use these anyway
+            </button>
+          </div>
+          <p class="dz-body">Nothing has been read yet, and nothing of yours has changed.</p>
         </div>
 
         <!-- State: this browser has no way to choose a folder.
@@ -177,18 +222,30 @@
           </svg>
           <p class="dz-headline">This one needs a computer</p>
           <p class="dz-body">
-            Save the Dates works on a whole folder at once, and choosing a folder
-            isn't something phone browsers can do. Open this page on a desktop or
-            laptop and the folder picker will be here.
+            A phone browser could hand this page a .zip, so getting your export in
+            is not the problem. Building the repaired copy is. That means holding
+            whole photos in memory while the new zip is assembled, and phone
+            browsers are given a small fraction of what a laptop gets, so a real
+            library runs out partway through.
           </p>
           <p class="dz-body">
-            A Takeout export usually runs to tens of gigabytes, so a phone is the
-            wrong place to unpack one anyway.
+            Starting something on your photo library that cannot finish is worse
+            than being told to come back on a laptop, so this page says so instead
+            of letting you find out an hour in. Open it on a desktop or laptop and
+            everything is here.
           </p>
         </div>
 
-        <!-- The real file input. Hidden, and driven by the label and buttons above. -->
+        <!-- The real file inputs. Hidden, and driven by the label and buttons
+             above. There have to be two: an input asking for a directory cannot
+             also offer ordinary files, so the zip chooser is its own control. -->
         <input type="file" id="folderPicker" webkitdirectory multiple hidden>
+        <!-- No accept filter. The instructions tell people to select everything Google
+             sent, and when a single video is larger than the split size Google sends it
+             as a bare .mp4 rather than inside a part. An accept list of .zip would grey
+             out the very file the instructions say to include. What is and is not an
+             archive is decided by reading the bytes afterwards, in looksLikeZip(). -->
+        <input type="file" id="zipPicker" multiple hidden>
       </div>
 
       <!-- Hidden along with the drop zone when there is no folder picker: this
@@ -201,15 +258,20 @@
         <div>
           <p class="notice-label">Good to know</p>
           <p class="notice-body">
-            Choose the folder, not the photos. Unzip what Google sent you, then pick the
-            whole Takeout folder. The .json files inside it are where Google put
-            anything your photos are missing. A mix of file types is fine: everything comes
-            back correctly dated, and only JPEGs are ever written to.
+            Give this the zip files exactly as Google sent them. Nothing needs unpacking
+            first, and the zips themselves are only ever read, never altered. The .json
+            files inside them are where Google put anything your photos are missing. A mix
+            of file types is fine: everything comes back correctly dated, and only JPEGs
+            are ever written to.
           </p>
           <p class="notice-body">
-            If Google gave you multiple zip files, unzip all of them into the SAME folder
-            before choosing it. Google splits photos and their metadata across different
-            zips, and both halves have to be in one place.
+            <strong>If Google gave you several zip files, choose all of them together.</strong>
+            Google splits one library across numbered parts wherever the size limit happens
+            to fall, so a photo can be in one part while the date for it is in another.
+            Handing over the whole set lets them be matched up. If there is a gap in the
+            numbers, this says which one is missing before it starts. It cannot know how
+            many parts you were sent, so a set that stops short at the end looks complete
+            to it. Check the highest number against Google's email.
           </p>
         </div>
       </div>
@@ -303,6 +365,12 @@
          it has been served properly.
          ------------------------------------------------------------------- -->
     <section id="phaseDone" hidden>
+
+      <!-- Anything wrong with the zips themselves goes ABOVE the numbers, because
+           it changes what every number underneath it means. A missing part of an
+           export is the case that matters: the scan would look perfectly healthy
+           while quietly describing half a library. -->
+      <div id="zipNotice"></div>
 
       <div class="tiles" id="tiles"></div>
 
@@ -604,8 +672,9 @@
                 Destination: "Send download link via email", which is the simplest option.
                 Frequency: "Export once." File type: .zip. Size: 2 GB. Google splits your
                 library across multiple files at whatever size you pick. Smaller files mean
-                more of them, but each one downloads and unzips faster and is less likely to
-                fail partway through. If you're not sure, pick 2 GB.
+                more of them, but each one downloads faster and is less likely to fail
+                partway through, and a failed download has to be started again. If you're
+                not sure, pick 2 GB.
               </p>
             </li>
             <li>
@@ -620,19 +689,25 @@
               </p>
             </li>
             <li>
-              <strong>Download every single file before you unzip anything</strong>
+              <strong>Download every single file</strong>
               <p>
-                If Google gives you seven files, download all seven first. A photo's date can
-                live in one file while the photo lives in another, and unzipping a partial
-                set gives you a partial result. The download links expire after about a week.
-                If you miss the window, you have to start the export over.
+                If Google gives you seven files, download all seven. A photo's date can live
+                in one file while the photo lives in another, so a partial set gives you a
+                partial result. The download links expire after about a week. If you miss the
+                window, you have to start the export over. If one of them is a bare .mp4
+                rather than a .zip, that is normal: Google does that when a single video is
+                larger than the size you picked. Keep it with the others.
               </p>
             </li>
             <li>
-              <strong>Unzip them all into one folder</strong>
+              <strong>That's it. Bring them here as they are</strong>
               <p>
-                Double-click each .zip file. Put all the contents in the same place. You'll
-                end up with a folder called Takeout containing a folder called Google Photos.
+                Don't unzip anything. Drag all the files onto this page together, or use
+                Choose zip files and select the whole set. Save the Dates reads inside the
+                zips without unpacking them, which is also why it doesn't need room on your
+                disk for a second copy of your library. If there is a gap in the numbers it
+                says so before it starts, though it cannot tell that the last part is
+                missing, so check the highest number against what Google sent.
               </p>
             </li>
           </ol>
@@ -660,8 +735,8 @@
         </summary>
         <div class="explain-body">
           <ol>
-            <li>Unzip your Google Takeout download. You need the folder, not the zip</li>
-            <li>Click "Choose folder" and pick that unzipped Takeout folder</li>
+            <li>Download every file Google sent you. Leave them zipped</li>
+            <li>Click "Choose zip files" and select all of them at once, or drag them onto the page</li>
             <li>Check what it found. Every file is listed with what will happen to it, before anything is written</li>
             <li>Click "Download fixed photos" and save the zip that comes back</li>
           </ol>
@@ -712,7 +787,12 @@
               unless you tick the box asking for it. They are frequently the moment the
               photo entered your library, not when it was taken.
             </li>
-            <li>You have to unzip first. It reads folders, not .zip files.</li>
+            <li>
+              Opening a zip needs a browser from 2023 or later, because it uses the
+              decompressor built into the browser rather than shipping one. On anything
+              older, unzip the export yourself and use Choose folder, which still works
+              exactly as it did.
+            </li>
             <li>
               Photos with no location get UTC. Google stores every capture time in UTC, and
               photo files store plain local time with no timezone attached. When a photo has
@@ -763,21 +843,25 @@
 
             <dt>Does Save the Dates work on my phone?</dt>
             <dd>
-              No. Choosing a whole folder isn't something phone browsers can do, so on a
-              phone the tool says so rather than letting you start something that would
-              fail. Use a desktop or laptop.
+              No. A phone browser could hand this page a .zip, so getting your export in
+              is not what stops it. Building the repaired copy is: that holds whole photos
+              in memory while the new zip is assembled, and a phone browser is allowed a
+              small fraction of a laptop's room for it, so a real library runs out partway
+              through. The page says so rather than letting you start something that
+              cannot finish. Use a desktop or laptop.
             </dd>
 
             <dt>Will Save the Dates change my original photos?</dt>
             <dd>
               No. Save the Dates builds a new copy and hands it to you as a zip download.
-              The Google Takeout folder you picked is only read, never written to.
+              The zips or folder you chose are only ever read, never written to.
             </dd>
 
             <dt>My export is a mix of JPEGs, HEICs and videos. Do I have to sort them first?</dt>
             <dd>
-              No. Point Save the Dates at the whole Google Takeout folder. Everything comes
-              back in the download with the correct date on it. Only JPEGs that are missing
+              No. Hand over the whole export, zips and all, or the whole Takeout folder if
+              you unpacked it. Everything comes back in the download with the correct date
+              on it. Only JPEGs that are missing
               something get written to; the HEICs, RAW files and videos are copied through
               byte for byte, and the screen tells you which is which.
             </dd>
@@ -835,6 +919,7 @@
 <script src="vendor/piexif.js"></script>
 <script src="vendor/jszip.min.js"></script>
 <script src="vendor/tz-lookup.js"></script>
+<script src="zip.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

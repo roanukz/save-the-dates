@@ -194,6 +194,12 @@ a:hover, .disclosure:hover {
    a single .notice-body still has no margin at all. */
 .notice-body + .notice-body { margin-top: var(--space-8); }
 
+/* Several separate problems with a set of zips read as a list, not as a
+   paragraph. One of them can be "part 3 is missing", which somebody has to be
+   able to pick out at a glance rather than find inside a sentence. */
+.notice-list { padding-left: 1.15em; margin: 0; }
+.notice-list li + li { margin-top: var(--space-4); }
+
 /* The one notice that is a caution rather than a fact: a date that came from
    Google's record rather than from the photo. It reads as amber because the
    user genuinely has a decision to make about it. */
@@ -240,6 +246,15 @@ a:hover, .disclosure:hover {
   background: var(--error-tint);
 }
 
+/* A gap in the numbered parts. Amber rather than red, and deliberately not the
+   rejected look: nothing has gone wrong and nothing has been refused. A question
+   is being asked, and "use these anyway" is a legitimate answer. */
+.dropzone.is-incomplete {
+  border: 3px dashed var(--warning-bar);
+  background: var(--warning-tint);
+}
+.dz-icon-warn { color: var(--warning-text); }
+
 /* No folder picker on this device. Solid and quiet rather than dashed: a dashed
    border is an invitation to drop something, and there is nothing to drop on.
    Deliberately not the error look - nothing has gone wrong here. */
@@ -276,6 +291,15 @@ a:hover, .disclosure:hover {
   color: var(--text-body);
   max-width: var(--measure-16);
   margin: 0 auto var(--space-12);
+}
+
+/* Two ways in now: the zips as Google sent them, or a folder already unpacked.
+   The zip is the primary button because it is what people actually have, and
+   .actions on its own would line them up left inside a centred panel. */
+.dz-actions {
+  justify-content: center;
+  margin-top: 0;
+  margin-bottom: var(--space-12);
 }
 
 .dz-filename {

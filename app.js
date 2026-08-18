@@ -1027,8 +1027,10 @@ function parseExifDateTime(text) {
 // decides what the person looking at the page can see.
 // ---------------------------------------------------------------------------
 
-// --- Screen 1: choosing a folder
+// --- Screen 1: choosing a folder, or the zips Google sent
 const picker = document.getElementById('folderPicker');
+const zipPicker = document.getElementById('zipPicker');
+const chooseZipButton = document.getElementById('chooseZipButton');
 const dropZone = document.getElementById('dropZone');
 const dzIdle = document.getElementById('dzIdle');
 const dzDragover = document.getElementById('dzDragover');
@@ -1065,6 +1067,20 @@ const stopButton = document.getElementById('stopButton');
 const tilesBox = document.getElementById('tiles');
 const scanSummary = document.getElementById('scanSummary');
 const clusterNotice = document.getElementById('clusterNotice');
+const zipNotice = document.getElementById('zipNotice');
+const dzIncomplete = document.getElementById('dzIncomplete');
+const dzIncompleteHeadline = document.getElementById('dzIncompleteHeadline');
+const dzIncompleteBody = document.getElementById('dzIncompleteBody');
+const incompleteBackButton = document.getElementById('incompleteBackButton');
+const incompleteGoButton = document.getElementById('incompleteGoButton');
+
+// Held while the "a part looks missing" question is on screen: the run to start
+// if the answer is "use these anyway". Cleared as soon as it is answered.
+let pendingZipRun = null;
+
+// Set only for the one re-entry that follows that answer, so the same question
+// cannot be asked twice about the same set.
+let skipMissingPartsCheck = false;
 const onlyMissingBox = document.getElementById('onlyMissing');
 const googleDatesBox = document.getElementById('googleDates');
 const resultsNotices = document.getElementById('resultsNotices');
@@ -1094,6 +1110,16 @@ let fileInventory = null;
 // The paths of the JSON sidecars. Only the names are kept, never the files.
 let sidecarPaths = [];
 
+// Anything that went wrong while opening zips: a part that would not open, a
+// missing part number, files that had to be skipped. These are shown on the
+// results screen, because a partly-read set of zips must never be mistaken for
+// a complete one.
+let zipNotes = [];
+
+// The names of the zips this run came from, empty when a folder was used. The
+// results screen says which it was, so nobody has to remember.
+let zipSourceNames = [];
+
 // What the last download run actually did. Null until a run finishes.
 let lastRunSummary = null;
 
@@ -1122,11 +1148,64 @@ let startedAt = 0;
 // --- Wiring ----------------------------------------------------------------
 
 chooseButton.addEventListener('click', function () { picker.click(); });
+chooseZipButton.addEventListener('click', function () { zipPicker.click(); });
 tryAgainButton.addEventListener('click', function () { showDropState('idle'); });
 
-picker.addEventListener('change', function (event) {
+incompleteBackButton.addEventListener('click', function () {
+  pendingZipRun = null;
+  picker.value = '';
+  zipPicker.value = '';
+  showDropState('idle');
+  // Put focus back on the control that starts the job again, rather than
+  // leaving it on a button that has just been hidden.
+  if (chooseZipButton) chooseZipButton.focus();
+});
+
+incompleteGoButton.addEventListener('click', function () {
+  const go = pendingZipRun;
+  pendingZipRun = null;
+  showDropState('idle');
+  if (go) go();
+});
+
+picker.addEventListener('change', async function (event) {
   const files = Array.from(event.target.files);
-  if (files.length > 0) handleFolder(files);
+  if (files.length === 0) return;
+
+  // The folder picker gets the same byte check as a drop. Somebody who has
+  // downloaded the parts but not unpacked them is quite likely to reach for
+  // "Choose folder" and hand over the folder the zips are sitting in, and
+  // without this those zips would be scanned as though they were photos and
+  // copied into the output as junk.
+  const split = await splitOutZips(files);
+  if (split.zips.length > 0) {
+    openZips(split.zips, split.rest);
+    return;
+  }
+
+  zipNotes = [];
+  zipSourceNames = [];
+  handleFolder(files);
+});
+
+// The zip chooser is a second, ordinary file input. It has to be separate from
+// the folder one, because an input asking for a directory cannot also offer
+// files, and a person who has not unpacked anything needs the second kind.
+zipPicker.addEventListener('change', async function (event) {
+  const chosen = Array.from(event.target.files);
+  if (chosen.length === 0) return;
+
+  const split = await splitOutZips(chosen);
+  if (split.zips.length === 0) {
+    showRejected(
+      'None of those are zip files',
+      'Whatever they are called, none of them is an archive inside. Choose the files Google sent you, or use Choose folder if you already unpacked them.',
+      chosen.length === 1 ? chosen[0].name : ''
+    );
+    return;
+  }
+  // Anything chosen that is not a zip comes along, for the oversized-video case.
+  openZips(split.zips, split.rest);
 });
 
 stopButton.addEventListener('click', function () {
@@ -1194,8 +1273,13 @@ let dragDepth = 0;
 dropZone.addEventListener('dragenter', function (event) {
   event.preventDefault();
   dragDepth++;
+  // A question about a missing part is waiting for an answer. Merely moving the
+  // pointer across the panel must not count as answering it: the old behaviour
+  // replaced the question with the dragover look and then, on leaving, with the
+  // idle one, so the chosen files and the warning both vanished without a click.
+  if (dropState === 'incomplete') return;
   showDropState('dragover');
-  dzDragName.textContent = 'Let go to read this folder';
+  dzDragName.textContent = 'Let go to start';
 });
 
 // This one fires dozens of times a second while the pointer moves. It must do
@@ -1210,6 +1294,7 @@ dropZone.addEventListener('dragover', function (event) {
 dropZone.addEventListener('dragleave', function (event) {
   event.preventDefault();
   dragDepth = Math.max(0, dragDepth - 1);
+  if (dropState === 'incomplete') return;   // see dragenter
   if (dragDepth === 0) showDropState('idle');
 });
 
@@ -1225,35 +1310,61 @@ dropZone.addEventListener('drop', async function (event) {
     if (entry) entries.push(entry);
   }
 
-  // A single file rather than a folder is the common mistake, and a .zip is
-  // the commonest of all. Say so plainly and say the file is unharmed.
+  if (entries.length === 0) {
+    showRejected("That couldn't be read", 'Try one of the buttons instead.', '');
+    return;
+  }
+
+  // Zips are what Google actually sends, so they are now the expected thing to
+  // drop rather than a mistake to correct. Which of the dropped files are zips
+  // is decided by reading the front of each one, never by its name. See
+  // looksLikeZip().
+  //
+  // ZIPS AND LOOSE FILES TOGETHER IS NOT A MISTAKE. When a single video is
+  // larger than the split size chosen at Takeout, Google cannot fit it inside a
+  // part and ships it beside them as a bare file. Somebody selecting everything
+  // Google gave them is doing exactly the right thing, so all of it is read.
+  showDropState('idle');
+
+  // Everything dropped is collected first, from inside folders as well as from
+  // the top level, and only then sorted. Sorting only the top level would mean a
+  // folder with the parts still sitting in it had its zips treated as photos and
+  // copied into the output as junk, which is exactly the mistake the byte check
+  // exists to prevent.
+  const collected = [];
+  for (const entry of entries) {
+    if (entry.isFile) {
+      collected.push(await new Promise(function (resolve, reject) { entry.file(resolve, reject); }));
+    } else {
+      await walkEntry(entry, '', collected);
+    }
+  }
+
+  const sorted = await splitOutZips(collected);
+
+  if (sorted.zips.length > 0) {
+    openZips(sorted.zips, sorted.rest);
+    return;
+  }
+  const looseFiles = sorted.rest;
+
+  // A single file that is not a zip is the remaining common mistake.
   if (entries.length === 1 && entries[0].isFile) {
-    const name = entries[0].name;
-    const isZip = /\.zip$/i.test(name);
     showRejected(
-      isZip ? "That's a .zip file" : "That's a single file, not a folder",
-      isZip
-        ? 'Unzip it first, then drag the folder that comes out.'
-        : 'Drag the whole Takeout folder instead.',
-      name
+      "That's a single file",
+      'Drop the whole Takeout folder, or the .zip files Google sent you.',
+      entries[0].name
     );
     return;
   }
 
-  if (entries.length === 0) {
-    showRejected("That couldn't be read", 'Try the Choose folder button instead.', '');
-    return;
-  }
-
-  showDropState('idle');
-  const files = [];
-  for (const entry of entries) await walkEntry(entry, '', files);
-
-  if (files.length === 0) {
+  if (looseFiles.length === 0) {
     showRejected('That folder is empty', 'Pick the folder that has your photos in it.', '');
     return;
   }
-  handleFolder(files);
+  zipNotes = [];
+  zipSourceNames = [];
+  handleFolder(looseFiles);
 });
 
 
@@ -1283,11 +1394,302 @@ async function walkEntry(entry, prefix, out) {
 }
 
 
-// --- When this browser cannot pick a folder at all -------------------------
+// --- Opening the zips Google sent, without unpacking them ------------------
 //
-// Picking a whole folder is something phone browsers simply cannot do. What
-// makes this awkward to detect is that iOS Safari and Chrome for Android both
-// LIST the webkitdirectory property while still only ever offering single
+// Google splits a library across numbered parts, and it splits them wherever
+// the size limit falls rather than at any boundary that means something. A
+// photo can therefore sit in part 3 while the .json holding its date sits in
+// part 4. That is why the old instructions said to unpack every zip into one
+// folder before starting: both halves had to end up in the same place.
+//
+// Reading the zips directly does the same joining-up, in memory, from the paths
+// inside them. Every part uses the same folder names, so a photo and its
+// sidecar land in the same folder here even when they arrived in different
+// files. Nothing is written to any zip; they are opened read only.
+
+
+/**
+ * Google names the parts of one export with a number on the end, like
+ * `takeout-20260818T090000Z-002.zip`. If the numbers that were dropped have a
+ * gap in them, a part is missing, and any photo whose date lived in that part
+ * will come out wrong. This is worth saying BEFORE the work starts.
+ *
+ * The check is deliberately quiet when it is not confident. Files that do not
+ * follow the naming pattern are ignored rather than guessed about.
+ */
+function findMissingParts(zipFiles) {
+  const groups = new Map();
+
+  for (const file of zipFiles) {
+    const match = /^(.*?)-(\d+)\.zip$/i.exec(file.name);
+    if (!match) continue;
+    const prefix = match[1];
+    if (!groups.has(prefix)) groups.set(prefix, []);
+    groups.get(prefix).push(Number(match[2]));
+  }
+
+  const missing = [];
+  for (const [, numbers] of groups) {
+    // One part on its own says nothing: a single-part export is normal, and so
+    // is deliberately doing one part at a time.
+    if (numbers.length < 2) continue;
+    const highest = Math.max.apply(null, numbers);
+    const have = new Set(numbers);
+    for (let n = 1; n <= highest; n++) if (!have.has(n)) missing.push(n);
+  }
+
+  return missing;
+}
+
+
+/**
+ * Opens every zip that was dropped or chosen and hands the files inside them to
+ * the same scanner a folder goes through.
+ *
+ * Only the index of each zip is read here, which is small however big the zip
+ * is, so this stays quick even on a library of many gigabytes. No photo is
+ * decompressed until the scan actually reaches it.
+ */
+/**
+ * Asks about a gap in the part numbers BEFORE any reading starts.
+ *
+ * This is the whole point of noticing. Telling somebody at the end of a 50 GB
+ * pass that part 3 was missing spends exactly the hour the warning exists to
+ * save, and by then they have a library dated from half its metadata. The check
+ * costs nothing: it reads the file NAMES, not the files.
+ *
+ * It asks rather than refuses. Two exports that overlap, or files somebody
+ * renamed, look like a gap without being one, and it is their library.
+ */
+function askAboutMissingParts(missing, onContinue) {
+  dzIncompleteBody.textContent =
+    'Part ' + joinWithAnd(missing.map(String)) + ' of this export ' +
+    verbBe(missing.length) + ' not among the files you chose. Google splits one ' +
+    'library across numbered parts wherever the size limit falls, so a photo can ' +
+    'be in one part while the date for it is in another. Adding the missing ' +
+    plural(missing.length, 'one') + ' gives a better result than running this twice.';
+
+  dzIncompleteHeadline.textContent =
+    missing.length === 1 ? 'Part ' + missing[0] + ' looks missing' : 'Some parts look missing';
+
+  pendingZipRun = onContinue;
+  showDropState('incomplete');
+
+  // Move focus onto the question. The control that was just used is now hidden,
+  // so without this a keyboard user is left with focus nowhere and a screen
+  // reader user is never told anything happened. Done after the state is shown,
+  // because a hidden element cannot take focus.
+  if (dzIncomplete) dzIncomplete.focus();
+}
+
+
+async function openZips(zipFiles, looseFiles) {
+  // Asked first, on the names alone, so a wrong set costs a click and not an hour.
+  const missingUpFront = findMissingParts(zipFiles);
+  if (missingUpFront.length > 0 && !skipMissingPartsCheck) {
+    askAboutMissingParts(missingUpFront, function () {
+      skipMissingPartsCheck = true;
+      openZips(zipFiles, looseFiles);
+    });
+    return;
+  }
+  skipMissingPartsCheck = false;
+
+  beginWork(zipFiles.length === 1 ? 'Opening your zip' : 'Opening your zips');
+  reportWork(0, zipFiles.length, '');
+  await pause();
+
+  const files = [];
+  const seenPaths = new Set();
+  const notes = [];
+  const failed = [];
+  let duplicates = 0;
+
+  // Anything dropped alongside the zips goes in first, so that if the same path
+  // also turns up inside a zip the loose copy is the one kept. Google only ships
+  // a file loose because it would not fit in a part, so the loose one is the
+  // whole file and any namesake inside a zip is not.
+  for (const file of (looseFiles || [])) {
+    const path = file.webkitRelativePath || file.name;
+    if (seenPaths.has(path)) continue;
+    seenPaths.add(path);
+    files.push(file);
+  }
+
+  for (let i = 0; i < zipFiles.length; i++) {
+    // Stop has to work here too. Opening the zips is quick on a small export and
+    // is not on a large one, and a Stop pressed during it used to be swallowed:
+    // the button disabled itself, the loop ignored it, and the scan that
+    // followed reset the flag, so the press vanished with nothing to show for it.
+    if (stopRequested) {
+      endWork();
+      showPhase('idle');
+      showDropState('idle');
+      stopRequested = false;
+      return;
+    }
+
+    const zipFile = zipFiles[i];
+    reportWork(i, zipFiles.length, zipFile.name);
+    await pause();
+
+    let result;
+    try {
+      result = await TakeoutZip.readZip(zipFile);
+    } catch (e) {
+      failed.push({ name: zipFile.name, why: e && e.message ? e.message : String(e) });
+      continue;
+    }
+
+    for (const file of result.files) {
+      // The same path arriving twice means the same zip was chosen twice, or two
+      // exports overlap. Keeping the first is right, and the count is reported
+      // rather than swallowed.
+      if (seenPaths.has(file.webkitRelativePath)) { duplicates++; continue; }
+      seenPaths.add(file.webkitRelativePath);
+      file.zipName = zipFile.name;
+      files.push(file);
+    }
+
+    for (const problem of result.problems) notes.push(zipFile.name + ': ' + problem);
+  }
+
+  reportWork(zipFiles.length, zipFiles.length, '');
+
+  // Every zip failed, so there is nothing to scan and the reason has to be the
+  // whole message rather than a footnote under a results screen.
+  if (files.length === 0) {
+    endWork();
+    showPhase('idle');
+    // Two different things reach here and they need different words. Either the
+    // archives would not open at all, or they opened perfectly and held nothing
+    // this tool can use. Saying "couldn't be opened" for the second is a lie
+    // that sends somebody off to re-download a file that is fine.
+    if (failed.length === 0) {
+      showRejected(
+        zipFiles.length === 1 ? 'That zip opened, but there is nothing in it for this'
+                              : 'Those zips opened, but there is nothing in them for this',
+        (notes.length > 0 ? notes.join(' ') + ' ' : '') +
+        'Check you picked the Google Photos export rather than another Takeout.',
+        zipFiles.length === 1 ? zipFiles[0].name : ''
+      );
+      return;
+    }
+    const why = failed.length === 1
+      ? failed[0].why
+      : 'None of those files could be opened as a zip.';
+    showRejected(
+      failed.length === 1 && zipFiles.length === 1 ? "That zip couldn't be opened" : "Those couldn't be opened",
+      why,
+      failed.length === 1 ? failed[0].name : ''
+    );
+    return;
+  }
+
+  // Anything that went wrong on the way in is carried into the results screen,
+  // because a partly-read set of zips must never look like a complete one.
+  zipNotes = notes;
+  for (const bad of failed) {
+    zipNotes.push(bad.name + ' could not be opened, so nothing in it was read. ' + bad.why);
+  }
+  if (duplicates > 0) {
+    zipNotes.push(
+      formatCount(duplicates) + ' ' + plural(duplicates, 'file') +
+      ' appeared in more than one zip and ' + verbBe(duplicates) + ' only counted once.'
+    );
+  }
+
+  // Files handed over outside the zips are worth mentioning, but only the ones
+  // that are genuinely loose. A whole unpacked folder dropped alongside the zips
+  // also arrives this way, and it carries its own sidecars in its own folders,
+  // so saying it has no date available would be untrue. The two are told apart
+  // by whether the file has a folder path at all.
+  const strays = (looseFiles || []).filter(function (f) {
+    return (f.webkitRelativePath || '').indexOf('/') === -1;
+  });
+  if (strays.length > 0) {
+    zipNotes.push(
+      formatCount(strays.length) + ' ' + plural(strays.length, 'file') + ' ' +
+      verbBe(strays.length) + ' handed over on ' + (strays.length === 1 ? 'its' : 'their') +
+      ' own rather than inside a zip, and ' + (strays.length === 1 ? 'was' : 'were') +
+      ' included. Google does that with a file too big for the split size you chose. ' +
+      'A date for ' + (strays.length === 1 ? 'it' : 'them') + ' can only come from the ' +
+      'file itself, because any .json for it sits inside a zip, in a folder ' +
+      (strays.length === 1 ? 'this file is' : 'these files are') + ' not in.'
+    );
+  }
+
+  const missing = findMissingParts(zipFiles);
+  if (missing.length > 0) {
+    zipNotes.push(
+      'Part ' + joinWithAnd(missing.map(String)) + ' of this export ' +
+      verbBe(missing.length) + ' not here. Google splits one library across ' +
+      'numbered parts and a photo\'s date can be in a different part from the ' +
+      'photo, so add the missing ' + plural(missing.length, 'one') + ' and run this again.'
+    );
+  }
+
+  zipSourceNames = zipFiles.map(f => f.name);
+  handleFolder(files);
+}
+
+
+/**
+ * Is this actually a zip? Asked of the BYTES, never of the name.
+ *
+ * The rest of this tool has never trusted a file extension, because a real
+ * export had seven files named .HEIC that were JPEGs inside. Routing a dropped
+ * file by whether its name ends in .zip would have been the one place that rule
+ * was broken, and it would break in both directions: an export somebody renamed
+ * would be treated as a photo and quietly added to their library as junk, and a
+ * folder of holiday snaps in a file called .zip would be opened as an archive.
+ *
+ * Every zip starts with the same two letters, after the initials of the man who
+ * wrote the format. The four bytes cost one read of the front of the file.
+ */
+async function looksLikeZip(file) {
+  try {
+    const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+    if (head.length < 4) return false;
+    if (head[0] !== 0x50 || head[1] !== 0x4b) return false;      // "PK"
+    // A normal archive starts with an entry; an empty one starts with its index.
+    return (head[2] === 0x03 && head[3] === 0x04) ||
+           (head[2] === 0x05 && head[3] === 0x06) ||
+           (head[2] === 0x07 && head[3] === 0x08);
+  } catch (e) {
+    return false;   // unreadable is not a zip, and the caller will say so
+  }
+}
+
+
+/** Sorts a dropped or chosen list into the zips and everything else. */
+async function splitOutZips(files) {
+  const zips = [];
+  const rest = [];
+  for (const file of files) {
+    if (await looksLikeZip(file)) zips.push(file); else rest.push(file);
+  }
+  return { zips: zips, rest: rest };
+}
+
+
+// --- When this device should not start at all ------------------------------
+//
+// This check used to be about folders. Picking a whole folder is something
+// phone browsers simply cannot do, and that alone ruled them out. Reading zips
+// removes that reason, because a zip is one ordinary file and a phone can hand
+// one over perfectly well. The conclusion did not change, but the reason did,
+// and it is worth writing down which is which.
+//
+// The reason now is the WRITING side. Reading got cheap: only one photo is held
+// at a time, whatever the export weighs. Building the repaired copy did not.
+// That holds whole photos in memory while a new zip is assembled, and a phone
+// browser is allowed a small fraction of a laptop's budget for exactly that
+// kind of storage, so a real library dies partway through the download rather
+// than at the start.
+//
+// What makes this awkward to detect is that iOS Safari and Chrome for Android
+// both LIST the webkitdirectory property while still only ever offering single
 // files, so asking whether the property exists gets a yes from browsers where
 // the picker does not work. The property test is still worth doing - Firefox on
 // Android, among others, is honest about it - but it cannot be the whole test.
@@ -1353,10 +1755,13 @@ function showDropState(state) {
   if (state === dropState) return;
   dropState = state;
   dropZone.className = 'dropzone' +
-    (state === 'dragover' ? ' is-dragover' : state === 'rejected' ? ' is-rejected' : '');
+    (state === 'dragover' ? ' is-dragover'
+      : state === 'rejected' ? ' is-rejected'
+      : state === 'incomplete' ? ' is-incomplete' : '');
   dzIdle.hidden = state !== 'idle';
   dzDragover.hidden = state !== 'dragover';
   dzRejected.hidden = state !== 'rejected';
+  if (dzIncomplete) dzIncomplete.hidden = state !== 'incomplete';
 }
 
 
@@ -1395,7 +1800,12 @@ function startOver() {
   skippedBox.innerHTML = '';
   scanSummary.textContent = '';
   clusterNotice.innerHTML = '';
+  zipNotes = [];
+  zipSourceNames = [];
+  pendingZipRun = null;
+  skipMissingPartsCheck = false;
   picker.value = '';
+  zipPicker.value = '';
   showDropState('idle');
   showPhase('idle');
 }
@@ -1641,6 +2051,7 @@ async function handleFolder(files) {
 
 /** Draws the results screen. */
 function showResults() {
+  drawZipNotice();
   drawTiles();
   drawScanSummary();
   drawResultsNotices();
@@ -1904,6 +2315,55 @@ function drawClusterNotice() {
     '<div><p class="notice-label">Where ' + formatCount(googleDated) +
     ' of these dates came from</p>' +
     '<p class="notice-body">' + escapeHtml(body) + '</p></div></div>';
+}
+
+
+/**
+ * Anything that went wrong opening the zips, said above the numbers.
+ *
+ * This sits at the top of the results on purpose. A missing part of an export
+ * produces a scan that looks completely healthy while describing only some of a
+ * library, and that is the one failure here capable of quietly losing somebody's
+ * dates. It has to be impossible to miss and it has to say what to do.
+ */
+function drawZipNotice() {
+  if (!zipNotice) return;
+
+  const notes = zipNotes.slice();
+
+  // A file with no date of its own and no sidecar falls back to the date stored
+  // beside it in the zip, and that is the moment Google packed the archive, not
+  // a capture time. Measured on two real exports: 91 entries carrying 4 distinct
+  // timestamps, and 121 carrying 5 within a minute of each other. It is the same
+  // pattern as an upload batch, so it gets said out loud the same way rather than
+  // being allowed to look like a date somebody's camera recorded.
+  if (zipSourceNames.length > 0) {
+    const undated = scannedRows.filter(row => dateSourceFor(row) === 'none').length;
+    if (undated > 0) {
+      notes.push(
+        formatCount(undated) + ' ' + plural(undated, 'file') + ' had no date inside ' +
+        (undated === 1 ? 'it' : 'them') + ' and no sidecar, so the only date left is when ' +
+        'Google packed the export. That is not when the photo was taken, it is not written ' +
+        'into the file, and ' + (undated === 1 ? 'it is' : 'they are') + ' counted under ' +
+        '"No date anywhere" above.'
+      );
+    }
+  }
+
+  if (notes.length === 0) {
+    zipNotice.innerHTML = '';
+    return;
+  }
+
+  const items = notes.map(note => '<li>' + escapeHtml(note) + '</li>').join('');
+
+  zipNotice.innerHTML =
+    '<div class="notice notice-warning">' + iconSvg('warning', 'notice-icon') +
+    '<div><p class="notice-label">' +
+    (notes.length === 1 ? 'One thing about the zips you gave this' : 'Some things about the zips you gave this') +
+    '</p><ul class="notice-body notice-list">' + items + '</ul>' +
+    '<p class="notice-body">Everything below describes only what was actually read. ' +
+    'Your zips were not changed.</p></div></div>';
 }
 
 
