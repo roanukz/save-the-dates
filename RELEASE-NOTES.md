@@ -111,14 +111,14 @@ shipped code rather than taken from its marketing.
 
 ### Checking it yourself
 
-`test-fixtures/zip-tests.html` opens in a browser with no install and runs 107 checks
+`test-fixtures/zip-tests.html` opens in a browser with no install and runs 109 checks
 against archives it builds while you watch, including a deliberately damaged one, an
 archive that lies about how many files it holds, and an export split across parts. No
 sample library is committed to this repository, because a real export is personal data.
 
 ---
 
-## v1, 2026-08-03 to 2026-08-05. The first version
+## v1, 2026-08-03 to 2026-08-10. The first version
 
 A single page that gives every file in a Takeout export its real capture date and fills in
 the EXIF of the JPEGs genuinely missing one. Timezones derived from the photo's GPS
