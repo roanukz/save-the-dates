@@ -1170,7 +1170,7 @@ incompleteGoButton.addEventListener('click', function () {
 
 picker.addEventListener('change', async function (event) {
   const files = Array.from(event.target.files);
-  if (files.length === 0) return;
+  if (files.length === 0 || runInProgress) return;
 
   // The folder picker gets the same byte check as a drop. Somebody who has
   // downloaded the parts but not unpacked them is quite likely to reach for
@@ -1193,7 +1193,7 @@ picker.addEventListener('change', async function (event) {
 // files, and a person who has not unpacked anything needs the second kind.
 zipPicker.addEventListener('change', async function (event) {
   const chosen = Array.from(event.target.files);
-  if (chosen.length === 0) return;
+  if (chosen.length === 0 || runInProgress) return;
 
   const split = await splitOutZips(chosen);
   if (split.zips.length === 0) {
@@ -1302,6 +1302,9 @@ dropZone.addEventListener('drop', async function (event) {
   event.preventDefault();
   event.stopPropagation();
   dragDepth = 0;
+
+  // A run is already going. Ignore rather than start a second one on top of it.
+  if (runInProgress) return;
 
   const entries = [];
   const items = event.dataTransfer.items || [];
@@ -1784,6 +1787,10 @@ function showPhase(name) {
 
 /** Puts everything back to the first screen. */
 function startOver() {
+  // Belt and braces on the re-entry guard. endWork() clears it on every path
+  // that finishes, and Start over is the one control always within reach, so
+  // clearing it here means no imaginable stuck flag can lock somebody out.
+  runInProgress = false;
   scannedRows = [];
   fileInventory = null;
   dateClusters = [];
@@ -1813,8 +1820,19 @@ function startOver() {
 
 // --- The wait --------------------------------------------------------------
 
+// True from the moment a run starts until it finishes, whichever way it ends.
+//
+// The working screen is deliberately not revealed for the first 700 ms, so that
+// a small library does not flash a progress panel nobody needed to see. That
+// leaves the drop zone on screen and still live for those 700 ms, and a second
+// drop landing in that window starts a parallel run that shares the tallies and
+// the name set with the first. Set in beginWork and cleared in endWork, which
+// between them bracket every run and every way one can end.
+let runInProgress = false;
+
 /** Starts the working screen and the clock that proves it is alive. */
 function beginWork(heading) {
+  runInProgress = true;
   stopRequested = false;
   stopButton.disabled = false;
   stopButton.textContent = 'Stop';
@@ -1848,6 +1866,7 @@ let workRevealTimer = null;
 
 /** Stops the clock, and cancels the progress panel if it never needed to appear. */
 function endWork() {
+  runInProgress = false;
   clearInterval(elapsedTimer);
   elapsedTimer = null;
   clearTimeout(workRevealTimer);

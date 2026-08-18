@@ -282,7 +282,12 @@ a:hover, .disclosure:hover {
    relationship with this tool, so it is not fine print. */
 .dz-privacy {
   font-size: var(--size-16); line-height: var(--lh-16);
-  color: var(--neutral-600);
+  /* Body colour, and a role token rather than a ramp step. --neutral-600 was
+     hardcoded here; the raw ramp is not remapped for dark mode, so the single
+     most important sentence on the page sat at 2.7:1 against a dark panel.
+     --text-muted fixed dark and left light at 4.2:1, so it gets full body
+     contrast instead, which is what the note above it already argues for. */
+  color: var(--text-body);
   margin: 0 0 var(--space-16);
 }
 
@@ -305,7 +310,9 @@ a:hover, .disclosure:hover {
 .dz-filename {
   font-family: var(--font-mono);
   font-size: var(--size-13); line-height: var(--lh-13);
-  color: var(--error-700);
+  /* Same fix: --error-700 on the dark error tint was 1.5:1, effectively
+     invisible. --error-text is remapped for both schemes. */
+  color: var(--error-text);
   word-break: break-all;
   margin: 0 0 var(--space-16);
 }
