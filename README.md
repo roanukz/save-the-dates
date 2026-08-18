@@ -4,6 +4,7 @@ Your Google Photos export using their official tool Takeout lands with every fil
 
 A single-page browser tool that gives every file in a Google Photos Takeout export its
 real capture date, and fills in the EXIF of the JPEGs that are genuinely missing one.
+Hand it the .zip files exactly as Google sent them; nothing needs unpacking first.
 
 **[Read the product teardown →](https://roanukz.github.io/save-the-dates/)**  ·  **[Try it live →](https://roanukz.github.io/save-the-dates/tool.html)**
 
@@ -52,8 +53,21 @@ There is no server, no build step and no package manager. The three libraries in
 `vendor/` are committed to this repository and loaded from disk, so the page works with
 the network off, which is also the easiest way to verify the privacy claim.
 
+Reading zips added no fourth library. It uses `DecompressionStream`, which is built into
+the browser, so the floor is a browser from 2023 or later. Anything older is told plainly
+and can still use the folder route.
+
 ## What it does
 
+- **Reads the .zip files Google sent, without unpacking them.** Drop the whole set in at
+  once, including a numbered export split across parts, and photos are matched to the
+  sidecars holding their dates even when the two arrived in different zips. Nothing is
+  extracted to disk, so repairing a library no longer needs room for a second copy of it.
+  If there is a gap in the numbers, it says which part is missing before it starts,
+  because a missing part produces a result that looks complete and is not. It cannot know
+  how many parts Google made, so a set truncated at the end is the one case it cannot
+  catch, and it says so rather than implying otherwise. A folder still works
+  exactly as before.
 - **Stamps every file in the output with its real capture date**, so the library lands
   correctly the moment you unzip it. In order of trust: the file's own
   `DateTimeOriginal`, then its Live Photo partner's, then the sidecar, then the file's
@@ -106,6 +120,7 @@ These are deliberate and are not up for quiet erosion:
 | `index.html` | The product teardown, the site's front door, styled from `tokens.css` unchanged |
 | `tool.html` | The entire UI |
 | `app.js` | All logic: matching, sidecar parsing, timezone resolution, EXIF writing, reports |
+| `zip.js` | Reads a Takeout .zip without unpacking it: the index, then one entry at a time |
 | `style.css` | Components |
 | `tokens.css` | The design system's raw values; portable, nothing app-specific |
 | `DESIGN.md`, `design/` | The reasoning behind the design system |
@@ -113,7 +128,7 @@ These are deliberate and are not up for quiet erosion:
 | `teardown.html` | Redirect to `/`, because the teardown's old URL is printed on a CV already in circulation |
 | `og-image.svg` | Source for the social share card, edit this one |
 | `og-image.png` | The rendered share card, committed so nothing has to build |
-| `test-fixtures/` | Sidecar-naming cases |
+| `test-fixtures/` | Sidecar-naming cases, and the zip-reading tests |
 
 The share card is committed as a PNG so serving the site still needs no build
 step. It is rendered at **2400 by 1254**, twice the 1200 by 627 Open Graph size,
@@ -135,6 +150,20 @@ sips -z 1254 2400 og-image.png --out og-image.png
 No sample Takeout data is committed, and `.gitignore` is set up to keep it that way. The
 sidecar `.json` files carry the GPS coordinates of wherever the photos were taken, so a
 test export is personal data. Point the tool at a folder outside this repository.
+
+Two test pages run the real code in your browser and need no install:
+
+| Page | What it checks |
+|---|---|
+| `test-fixtures/naming-tests.html` | `findSidecarFor()` against Google's awkward naming |
+| `test-fixtures/zip-tests.html` | `readZip()` against archives it builds while you watch |
+
+The zip tests build their own archives rather than committing any, for the same privacy
+reason. They check that a file read out of a zip is byte for byte the file you would get
+by unpacking it by hand, whichever way it was stored, and that a damaged or incomplete
+archive is refused rather than quietly returning less. That last group matters most: a
+zip that half-reads produces a result that looks perfectly healthy, which is the one
+failure this tool exists to prevent.
 
 ## Licence
 

@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Save the Dates: A Product Teardown</title>
-<meta name="description" content="A product teardown of Save the Dates: the problem, the evidence it is real, what measuring a live Google Takeout export changed about the scope, the decisions I committed to, and what I would cut.">
+<meta name="description" content="A product teardown of Save the Dates: the problem, the evidence it is real, what measuring a live Google Takeout export changed about the scope, the decisions I committed to, what shipped next, and what I would cut.">
 
 <!-- Share card. Same image and treatment as index.html, but title, description
      and og:url describe THIS page - og:url is a canonical hint, so pointing it
      at the site root would make shared teardown links resolve to the tool. -->
 <meta property="og:title" content="Save the Dates: A Product Teardown">
-<meta property="og:description" content="The product thinking behind a free, browser-based tool that repairs Google Photos Takeout dates: the problem, the evidence, what measuring a live export changed about the scope, the decisions I committed to, and what I would cut.">
+<meta property="og:description" content="The product thinking behind a free, browser-based tool that repairs Google Photos Takeout dates: the problem, the evidence, what measuring a live export changed about the scope, the decisions I committed to, what shipped next, and what I would cut.">
 <meta property="og:image" content="https://roanukz.github.io/save-the-dates/og-image.png?v=5">
 <meta property="og:image:alt" content="A photo whose wrong export date is struck through and replaced with its real capture date.">
 <meta property="og:image:width" content="2400">
@@ -385,7 +385,7 @@ footer a { color: var(--link); }
   <div class="wrap">
     <p class="eyebrow">Product teardown</p>
     <h1>Save the Dates</h1>
-    <p class="lede">Using the Google Photos export tool Takeout results in every file dated today. This is the product thinking behind a free browser tool that puts the real dates back: the problem, the evidence it is real, what measuring a live export changed about the scope, the decisions I committed to, and what I would cut.</p>
+    <p class="lede">Using the Google Photos export tool Takeout results in every file dated today. This is the product thinking behind a free browser tool that puts the real dates back: the problem, the evidence it is real, what measuring a live export changed about the scope, the decisions I committed to, what shipped after the first version, and what I would cut.</p>
     <p class="byline">Roanuk Zaman · Product teardown of a tool I designed, directed and shipped</p>
 
     <div class="cta-row">
@@ -425,7 +425,8 @@ footer a { color: var(--link); }
       <li><a href="#incumbent">3. Why Google won't</a></li>
       <li><a href="#built">4. What I built</a></li>
       <li><a href="#next">5. What I would do next</a></li>
-      <li><a href="#cut">6. What I would cut</a></li>
+      <li><a href="#shipped">6. What I shipped next</a></li>
+      <li><a href="#cut">7. What I would cut</a></li>
       <li><a href="#frameworks">Appendix. Method made visible</a></li>
     </ol>
   </nav>
@@ -436,7 +437,7 @@ footer a { color: var(--link); }
       <p class="section-kicker">The short version</p>
       <h2>Summary</h2>
       <ul>
-        <li><strong>The problem is real, documented and durable.</strong> Unzipping a Takeout export resets every file's modified date, and for photos that never carried EXIF, or whose dates were edited inside Google Photos, the JSON sidecar is the only copy. Google's late-2024 rename to <code>.supplemental-metadata.json</code> broke the leading free tool. The position is genuinely empty: a free, non-technical, 100% client-side, browser-based repairer.</li>
+        <li><strong>The problem is real, documented and durable.</strong> Unzipping a Takeout export resets every file's modified date, and for photos that never carried EXIF, or whose dates were edited inside Google Photos, the JSON sidecar is the only copy. Google's late-2024 rename to <code>.supplemental-metadata.json</code> broke the leading free tool. <strong>The claim that this position was empty is no longer true, and I have retracted it:</strong> a free browser-based client-side repairer now exists. What survives is narrower, dated and checkable, and it is set out in part 7.</li>
         <li><strong>Measurement set the scope, not intuition.</strong> The category's shared explanation is that Takeout strips capture dates out of photos. One afternoon with ExifTool over a real 65-file export showed it does not, which cut a 10-day roadmap item and pointed the product at what is actually broken. It is the highest-leverage work on the project, and it cost a day.</li>
         <li><strong>The product judgment is in the costly decisions, not the code.</strong> GPS-derived timezone (a documented reversal), refusing by default to write Google's upload timestamp into a field that reads as a capture time, two deliberately-hard-to-confuse CSV reports, and privacy you can verify rather than take on trust.</li>
         <li><strong>The binding constraint is distribution, not capability.</strong> With one commit and no users, this cannot support market-share claims, and this teardown does not make any. The top three roadmap items are all distribution, not features. That ordering is the point.</li>
@@ -502,7 +503,7 @@ footer a { color: var(--link); }
         <p>The problem is still live and, if anything, worse. The late-2024 rename is still rolling out inconsistently, so a single export can contain the old format, the new format, or both. Google also truncates filenames at 46 characters, producing a slot machine of truncated sidecar names: <code>.supplemental-metadat.json</code>, <code>.supple.json</code>, <code>.s.json</code>. Guides updated in March and April 2026 still describe the wrong-date problem as current. There is no evidence Google has fixed the export behaviour.</p>
       </div>
 
-      <p>This is a durable, recurring, independently verified problem, and the format keeps changing in ways that break tools. That last fact is central to the product thesis, so see decision 5.</p>
+      <p>This is a durable, recurring, independently verified problem, and the format keeps changing in ways that break tools. That last fact is central to the product thesis, so see decision 6, which is where the guesswork about Google's naming is deliberately kept in one place.</p>
     </section>
 
     <section id="incumbent">
@@ -621,6 +622,8 @@ footer a { color: var(--link); }
             <tr><td><strong>Metadata</strong></td><td>File modified date always; DateTimeOriginal, DateTimeDigitized, DateTime, GPS, OffsetTime* only where genuinely missing</td><td>Captions, albums, people tags; overwriting metadata the file already has</td><td>Date and place are the memory-defining fields. Filling a gap is a repair; overwriting a camera's own reading is a change nobody asked for.</td></tr>
             <tr><td><strong>Date provenance</strong></td><td>Labelled per file; upload batches detected and surfaced</td><td>Writing a sidecar-only date into EXIF by default</td><td>A date that exists only in Google's record is when the photo arrived, not when it was taken. Writing it in is irreversible and invisible.</td></tr>
             <tr><td><strong>Timezone</strong></td><td>GPS-derived, DST-resolved, UTC fallback, for sidecar-sourced dates</td><td>Manual per-photo override; converting a date the file already has</td><td>Correct-by-default for the high-value travel case. A date already in the file is used exactly as the camera recorded it.</td></tr>
+            <tr><td><strong>Input</strong></td><td>The .zip files as Google sent them, a whole numbered set at once, plus the loose files shipped beside them; an unpacked folder still works</td><td>Unpacking to disk; .tgz exports; reading a zip on a phone</td><td>Added in v2, see part 6. The two onboarding steps this removed were the two people got wrong. A .tgz has no index at the end, so it cannot be read without streaming all of it, which would forfeit every property that makes this cheap.</td></tr>
+            <tr><td><strong>Archive integrity</strong></td><td>Refuse a damaged, truncated or miscounted archive; ask about a missing part before reading</td><td>Repairing a damaged archive; guessing at a part that was never provided</td><td>Added in v2. A half-read zip produces a result that looks complete, which is this product's signature bug turned on its own output.</td></tr>
             <tr><td><strong>Architecture</strong></td><td>Client-side single page</td><td>Server, accounts, cloud processing</td><td>The privacy thesis; also zero infra cost and zero install.</td></tr>
             <tr><td><strong>Output</strong></td><td>New copy as download, batched zips</td><td>In-place modification</td><td>Never risk originals; batching avoids the tab crash on large libraries.</td></tr>
           </tbody>
@@ -632,11 +635,11 @@ footer a { color: var(--link); }
 
       <h3>What I got wrong, or would change</h3>
       <ul>
-        <li><strong>I measured too late in the process.</strong> The ExifTool run that set the scope came after most of the build, not before it. An hour on day one would have scoped decision 1 differently and kept HEIC support off the roadmap entirely. Verifying the premise is the cheapest work available on a project like this, and I did it in the wrong order. The habit I took from it: make the product measure the thing rather than assert it, which is why the preview table now reports per file whether it needed the tool at all.</li>
+        <li><strong>I measured too late in the process.</strong> The ExifTool run that set the scope came after most of the build, not before it. An hour on day one would have scoped decision 1 differently and kept HEIC support off the roadmap entirely. Verifying the premise is the cheapest work available on a project like this, and I did it in the wrong order. The habit I took from it: make the product measure the thing rather than assert it, which is why the preview table now reports per file whether it needed the tool at all. <em>And I did it again in v2.</em> Two claims about how Google packs an archive went into a code comment as reasoning before either was checked, and both were wrong. The difference is that this time the checking happened before it shipped rather than after, and part 6 publishes both retractions. That is an improvement in when, not yet in habit.</li>
         <li><strong>The obvious implementation would have written a guess into a field that reads as a fact.</strong> Every tool in this category takes Google's <code>photoTakenTime</code> for a date-less photo and writes it into <code>DateTimeOriginal</code>. It is the natural thing to build, and on my export it would have stamped 10 photos taken years apart with timestamps 16 seconds apart, destroying the distinction between a known capture time and a guess, permanently and invisibly. Catching it needed the data, not more thought. It is the strongest argument I have for measuring before designing.</li>
         <li><strong>No hosted URL.</strong> This was the biggest inconsistency between thesis and artifact. A tool whose entire pitch is "no install, just open it" was distributed as a repo you had to clone. <em>Fixed: this page and the tool are now live on GitHub Pages.</em></li>
         <li><strong>Licence ambiguity.</strong> <code>jszip@3.10.1</code> is dual-licensed MIT or GPLv3; the licence table should state which one I am exercising, to avoid ambiguity for anyone reusing the repo.</li>
-        <li><strong>The HEIC sample is thin.</strong> Only 3 files in the export were genuinely HEIC-encoded, and I cut a 10-day roadmap item partly on that. It is the right call on the evidence I have, but three files is not a study, and I would re-measure across a few libraries before treating it as settled.</li>
+        <li><strong>The HEIC sample is thin.</strong> Only 3 files in the export were genuinely HEIC-encoded, and I cut a 10-day roadmap item partly on that. It is the right call on the evidence I have, but three files is not a study, and I would re-measure across a few libraries before treating it as settled. <em>Partly answered, from someone else's evidence rather than mine:</em> the maintained fork of the leading desktop tool documents that Google's "Storage Saver" compresses images to JPEG while keeping the original filename extension, which is exactly the pattern I found and could not generalise from. A rival codebase independently describing the same behaviour is better evidence than three more of my own files, and it is what "sniff the bytes, never the extension" was built for. The sample is still thin; the decision it supported is no longer resting on it alone.</li>
         <li><strong>Zero users means zero telemetry-backed claims.</strong> Every statement about user behaviour here is reasoned from third-party evidence, not my own data, which the tool deliberately does not collect. That is the correct privacy choice and a real analytics blind spot at the same time. I would not add telemetry; I would run consented usability sessions instead.</li>
       </ul>
     </section>
@@ -644,7 +647,7 @@ footer a { color: var(--link); }
     <section id="next">
       <p class="section-kicker">Part 5</p>
       <h2>What I would do next</h2>
-      <p>The honest headline: <strong>capability is not the constraint, distribution is.</strong> The tool works and embodies a clear thesis, but it has one commit, no stars and no users. Nothing else on a roadmap matters until a stranger can use it in one click and I can learn from real usage. A tool with zero users cannot support market-share claims, and this document does not make any.</p>
+      <p>The honest headline: <strong>capability is not the constraint, distribution is.</strong> That is still the finding, and part 6 is what happened when the top buildable row was built anyway: it removed two onboarding steps and changed nothing about the fact that nobody has arrived yet. The tool works and embodies a clear thesis, but it has no stars and no users. Nothing else on a roadmap matters until a stranger can use it in one click and I can learn from real usage. A tool with zero users cannot support market-share claims, and this document does not make any.</p>
 
       <p>I prioritise with <strong>RICE</strong> (Sean McBride, Intercom) because its Reach term forces distribution above feature-building, which is exactly the discipline needed here. Impact is scored from 0.25 to 3, and effort in person-days. These are my estimates and I flag them as such.</p>
 
@@ -655,7 +658,7 @@ footer a { color: var(--link); }
             <tr><td><strong>Deploy to GitHub Pages, one live URL everywhere</strong></td><td class="num">High</td><td class="num">3</td><td class="num">100%</td><td class="num">0.5 d</td><td class="num">Very high</td><td>Removes the one inconsistency that undercuts the entire pitch. Turns "clone this repo" into "click this link."</td></tr>
             <tr><td><strong>Publish this teardown as the front door</strong></td><td class="num">High</td><td class="num">2</td><td class="num">90%</td><td class="num">2 d</td><td class="num">High</td><td>The document is the portfolio; the tool is the evidence.</td></tr>
             <tr><td>Post into the threads that already prove the gap</td><td class="num">Medium</td><td class="num">2</td><td class="num">70%</td><td class="num">1 d</td><td class="num">High</td><td>Demand is already assembled in known locations. The cheapest real reach.</td></tr>
-            <tr><td>Drag-and-drop the whole Takeout zip, no pre-extraction</td><td class="num">Medium</td><td class="num">2</td><td class="num">70%</td><td class="num">3 d</td><td class="num">Medium</td><td>Competitors' number one friction is "extract everything first." Removing it is a differentiated, in-thesis win.</td></tr>
+            <tr><td><strong>Drag-and-drop the whole Takeout zip, no pre-extraction</strong></td><td class="num">Medium</td><td class="num">2</td><td class="num">70%</td><td class="num">3 d</td><td class="num">Medium</td><td>Shipped, and written up in part 6. Scores left as originally estimated, because the estimate being wrong is the finding. One correction on the evidence: "extract everything first" is not the whole field's friction, it is every browser-based option's friction, including the free one that has since appeared. The desktop tools now take zips.</td></tr>
             <tr><td>Consented, manual usability sessions (5 users)</td><td class="num">Low</td><td class="num">3</td><td class="num">80%</td><td class="num">2 d</td><td class="num">Medium</td><td>The only honest way to get user data without violating the privacy thesis.</td></tr>
             <tr><td><s>HEIC support</s>, <strong>cut</strong></td><td class="num">n/a</td><td class="num">n/a</td><td class="num">n/a</td><td class="num">n/a</td><td class="num">Cut</td><td>Measurement cut this one. All 7 files named <code>.HEIC</code> in my export came out of Takeout with date and GPS already intact, so there was nothing to repair. The item existed to solve a problem nobody had verified. They now get correct file dates and are otherwise left alone. See decision 2.</td></tr>
             <tr><td>Captions and album reconstruction</td><td class="num">Medium</td><td class="num">2</td><td class="num">40%</td><td class="num">8 d</td><td class="num">Low</td><td>There is a gap, since GPTH silently drops these, but it is a different and larger job, so defer it.</td></tr>
@@ -669,8 +672,85 @@ footer a { color: var(--link); }
       </div>
     </section>
 
-    <section id="cut">
+    <section id="shipped">
       <p class="section-kicker">Part 6</p>
+      <h2>What I shipped next</h2>
+      <p>Part 5 put the top three next steps in distribution and scored one buildable feature above the rest: take the Takeout zip as it arrives, so nobody has to unpack anything first. The two distribution rows shipped, this page is the evidence of one of them, and that made the zip row the live one. This part is what happened when I built it, including the two things I had assumed and measured only afterwards.</p>
+
+      <h3>What it does now</h3>
+      <p>You hand it the .zip files exactly as Google sent them, all of them at once, and it reads inside them without unpacking anything. The onboarding lost two steps, and they were the two people got wrong: <em>download every file before you unzip anything</em>, and <em>unzip them all into one folder</em>. Those existed because Google splits a library wherever the size limit falls, so a photo can sit in one part while the JSON holding its date sits in another, and both halves had to be put in one place by hand before the tool could match them. It now does that joining up itself, from the paths inside the parts.</p>
+      <p>Three things came with it that were not in the original row. It notices when a numbered part is missing and asks <strong>before</strong> reading anything, because the point of noticing is to save the run, not to explain it afterwards. It takes the loose media files Google ships beside the zips when one video is bigger than the split size. And it never needs room on your disk for a second copy of your library, which for the engineer quoted in part 3, who documented a 263 GB extraction, is a larger win than the clicks.</p>
+
+      <div class="callout callout-info">
+        <h4>What I assumed, and what two real exports showed</h4>
+        <p>The measurement in part 1 is the thing this project is proudest of, and I did it late. So this time I wrote the argument down first and then checked it against two real Takeout exports, 91 and 121 entries, on 18 August 2026. Both halves of the argument were wrong.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>What I wrote</th><th>What the exports actually show</th><th>What it changed</th></tr></thead>
+            <tbody>
+              <tr><td>Photos are stored verbatim, because a JPEG is already compressed and an archiver gains nothing by compressing it again. So reading one is a plain read at an offset.</td><td><strong>Every entry is compressed, photos included</strong>, and the photos come out at 100.0% of their original size. The compression achieves nothing and Google does it anyway.</td><td>The design survived, because it never depended on it. The performance argument I would have published did not. A photo is now inflated once to scan it and once to write it, and the comment says so.</td></tr>
+              <tr><td>Reading the zip directly recovers a real last-resort date, where unpacking by hand throws it away and stamps the moment of extraction.</td><td><strong>It is the moment Google packed the archive.</strong> 121 entries carry 5 distinct timestamps spanning 62 seconds. 91 entries carry 4. Photos taken across years do not share five timestamps a minute apart.</td><td>Decision 12. It is treated as no date at all, exactly like the upload batches in decision 3, arrived at from a different direction.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Neither of these would have been caught by testing, because the code was correct both times. They were wrong <em>claims about Google</em> sitting in a comment, and the only thing that finds those is looking.</p>
+      </div>
+
+      <div class="decision">
+        <span class="decision-num">Decision 10</span>
+        <h3>Writing a zip reader rather than using the one already in the project</h3>
+        <p>JSZip was already vendored, already loaded, and already writing the output, so reading with it would have been free. It cannot do this job. It reads an archive by pulling all of it into memory, and a Takeout part is commonly 2 GB and can be 50 GB. Worse, and the part I checked rather than assumed: it reads the index offset by shifting bytes, which JavaScript does in 32 bits and signed. I ran the shipped function on my own 2.6 GB archive's real offset of 2,621,440,000 and it returns <strong>minus 1,673,527,296</strong>, so it cannot find the index at all. That is not a large-archive limitation. It is every archive over 2 GB, which is most of them.</p>
+        <p>So the reader is a new file of about 360 lines of code and 250 of comments explaining a format most people never look at, which does what an unzip program does: read the small index at the end, then fetch one entry at a time with <code>Blob.slice</code>, inflating with <code>DecompressionStream</code>, which is built into the browser. <strong>No fourth library.</strong> The cost of opening an archive is set by the size of its index, not the size of the archive, so a 50 GB export opens like a small one. Measured on the same machine: a 2.6 GB archive indexed while holding 35 MB, and scanning every file in a real 246 MB export for its metadata never rose more than about 15 MB above idle. Timings vary with what the disk has cached and are not worth quoting; the memory does not, and it is the number that decides whether the tab survives.</p>
+        <ul class="tradeoff">
+          <li><span class="k">Cost</span><span>Four hundred lines of format parsing I now own, in a project whose whole pitch is that it is small, plus a browser floor of Safari 16.4 and Firefox 113.</span></li>
+          <li><span class="k">Bought</span><span>Reading a 50 GB export without ever holding it, no new dependency, and no version of this that dies on the archive sizes Google actually offers.</span></li>
+          <li><span class="k">Why</span><span>The alternative was not "use JSZip", it was "use JSZip and quietly fail on most real exports". A dependency that cannot do the job is not cheaper than code that can.</span></li>
+        </ul>
+        <p style="margin-top:var(--space-16)">The floor is the honest cost and it is stated in the tool rather than discovered at runtime. Anyone older unpacks the export themselves and uses the folder route, which still works exactly as it did.</p>
+      </div>
+
+      <div class="decision">
+        <span class="decision-num">Decision 11</span>
+        <h3>Refusing a zip rather than half-reading one</h3>
+        <p>Reading an archive introduces a failure this tool did not previously have, and it is the worst shape available to it: a zip that half-reads produces a scan that looks completely healthy while describing part of a library. Everything about this product argues that a partial set gives a partial result, so success reported over a truncated library would be the tool committing its own signature bug.</p>
+        <p>So three checks refuse rather than continue. The archive's declared file count is compared against the number actually read, because a malformed entry makes the walk lose its place and stop early with nothing to show for it. Every whole file is checked against the checksum stored beside it, because these are multi-gigabyte downloads over home connections and a damaged photo copied into the output and presented as repaired is worse than one refused. And a large-archive marker with no large-archive index throws instead of returning the placeholder, which previously produced "that zip has nothing in it" and blamed the wrong thing.</p>
+        <ul class="tradeoff">
+          <li><span class="k">Cost</span><span>A checksum pass over every file, and a class of archive that other tools would open and this one will not.</span></li>
+          <li><span class="k">Bought</span><span>No path where a damaged or incomplete export produces a confident, wrong, complete-looking result.</span></li>
+          <li><span class="k">Why</span><span>Refusing is recoverable, because Google will send the file again. Deleting your originals against a silently partial copy is not.</span></li>
+        </ul>
+        <p style="margin-top:var(--space-16)">Writing a guarantee is not the same as having one. A review pass before this shipped found that the guarantee above had a hole straight through it: entries under 4 MB were being kept in memory after their first read, the copy was stored <em>before</em> the checksum ran, and a later read returned that copy without checking anything. So a damaged photo could fail verification once and be served as good every time after. The same cache also quietly retained most of the library, which is the precise opposite of the flat memory this file was built for. It bought nothing, because nothing is read in full twice in one run. It is gone, and the test page now fails if anything like it returns.</p>
+        <p><em>The habit that catches this is not more care while writing.</em> It is having someone else try to break the thing after it looks finished. Both of the wrong claims above and this hole were found that way, and none of them would have been found by testing, because the code did exactly what it was written to do.</p>
+      </div>
+
+      <div class="decision">
+        <span class="decision-num">Decision 12</span>
+        <h3>The packing moment is not a capture time, and it is not written anywhere</h3>
+        <p>This is decision 3 all over again, reached from the other end. A file with no date inside it and no sidecar has one date left: the one stored beside it in the zip. It is tempting, because it is real, specific and much better than today. It is also the moment Google packed the archive, which the measurement above shows plainly. A hundred and twenty one entries spanning years of photographs do not share five timestamps sixty two seconds apart.</p>
+        <p>So it is treated as no date at all. Those files are counted under "no date anywhere", nothing is written inside them, and the results screen says in words that the only date left is when Google packed the export and that this is not when the photo was taken. It is still used for the date on the outside of the copy, because something has to go there and the packing moment beats the moment you happened to run this, and that use is disclosed too.</p>
+        <p><em>Scoped by decision 3.</em> The rule was already written: a guess never goes into a field that reads as a fact. What was new was a second source that looks like a fact and is not.</p>
+      </div>
+
+      <h3>What the estimate got wrong</h3>
+      <p>The row in part 5 said three days at 70% confidence. The number is roughly right and the reasoning behind it was not, which is the more useful thing to record.</p>
+      <p>The 70% was feasibility risk: whether a browser could read a multi-gigabyte zip at all. That was the wrong risk to price. It was settled in an afternoon and never came back. What the estimate did not contain was any allowance for the two false claims above, for the checks in decision 11, or for the copy sweep, and that is where the work actually went. Reading the zip was the small part. Being able to say honestly what had been read was the rest of it.</p>
+      <p>The estimate also under-scoped in a way that flattered it: it said "drag-and-drop the whole Takeout zip", and a set of numbered parts with a gap in it is not one zip. The missing-part question is the single most useful thing in this release and it was not in the row at all.</p>
+
+      <div class="callout callout-warning">
+        <h4>What I have not proved</h4>
+        <p><strong>The two exports are one library, measured twice.</strong> They are the same account three days apart, 91 and 121 entries. That is enough to refute two claims I had made about Google, because one counterexample refutes, but it is nowhere near enough to describe what Google does generally. Both are 2 GB splits, so neither contains a large-format index at all.</p>
+        <p><strong>So the 10 GB and 50 GB splits are tested only against archives built to look like them.</strong> The test page constructs one rather than downloading fifty gigabytes, and that is exactly the thin-sample problem part 4 confesses about HEIC, in a new place. It is stated here rather than discovered by someone else.</p>
+        <p><strong>And there are still no users.</strong> Nothing here is evidence that anyone wanted it. It is evidence that the thing the roadmap named is now built and that its claims can be checked, which is a different and smaller claim.</p>
+      </div>
+
+      <div class="callout callout-success">
+        <h4>How this can be checked without trusting me</h4>
+        <p>Every number in this part came from running something, and the runnable parts are in the repository. <code>test-fixtures/zip-tests.html</code> opens in a browser with no install and runs 107 checks against archives it builds while you watch, including a deliberately damaged one, an archive that lies about how many files it holds, and an export split across parts. That is the same "prove it yourself" property as the network-off privacy check and the live contrast recomputation, applied to the one claim a reader has most reason to doubt: that a file read out of a zip is the same file.</p>
+      </div>
+    </section>
+
+    <section id="cut">
+      <p class="section-kicker">Part 7</p>
       <h2>What I would cut</h2>
       <p>Using the <strong>Blue Ocean ERRC grid</strong> (Kim and Mauborgne, 2005), which maps unusually well onto "what I would not build," because the strategy is to compete on axes the incumbents ignore rather than to out-feature them.</p>
 
@@ -702,9 +782,9 @@ footer a { color: var(--link); }
         <div class="errc-cell">
           <h4>Create</h4>
           <ul>
-            <li>A browser-based, zero-install, client-side repairer for non-technical users. No prominent free tool occupies this exact box.</li>
+            <li>A browser-based, zero-install, client-side repairer for non-technical users. One other free tool now occupies this box, and the four things that still separate them are set out below.</li>
             <li>Runtime-verifiable claims, meaning privacy via network-off and accessibility via live contrast recomputation. "Prove it yourself" properties are a category-level novelty.</li>
-            <li>Data provenance as a visible feature. No other tool in this category distinguishes a capture time from Google's record of when the file arrived.</li>
+            <li>Data provenance as a visible feature. No tool I have found in this category distinguishes a capture time from Google's record of when the file arrived, and after the retraction above I state that as the limit of my searching rather than as a fact about the category.</li>
           </ul>
         </div>
       </div>
@@ -718,8 +798,22 @@ footer a { color: var(--link); }
       </ul>
 
       <div class="callout callout-warning">
-        <h4>An honesty check on positioning</h4>
-        <p>The "no free browser-based client-side repairer" claim held up under research, but the free-tool landscape is not static. GPTH is effectively abandoned, with its last release in September 2023, its last commit in January 2025, many unanswered open issues and no support for the new format. An active community fork exists that does write EXIF and handle the new sidecar format, and there is a newer free GUI desktop app. Both are still <em>installed desktop tools</em>, not zero-install browser tools, so the positioning stands. But it should be stated as "the only free zero-install browser-based option," not "the only free option." Overclaiming here is exactly the kind of thing an interviewer will fact-check.</p>
+        <h4>The honesty check fired, and the claim it was guarding lost</h4>
+        <p>The first version of this section ended with a warning to itself: state the position as "the only free zero-install browser-based option," not "the only free option," because overclaiming is exactly what an interviewer fact-checks. Re-checking it on <strong>18 August 2026</strong> found that even the narrowed claim had gone. <a href="https://takeout.legault.me/" target="_blank" rel="noopener noreferrer">Takeout Fixer</a> is free, runs entirely in the browser, uploads nothing, and repairs Google Photos metadata with ExifTool compiled to WebAssembly. It is the box this product claimed was empty.</p>
+        <p>The retraction is above, in the summary and in the Create cell. What did not survive: exclusivity. What did, checked in the rival's own shipped page and code rather than taken from its marketing, and stated as behaviour rather than as a boast:</p>
+        <ul>
+          <li><strong>It cannot put the date on the file.</strong> Its own copy says a browser cannot set file creation dates on disk, and argues that importers read the embedded dates instead. That field is the entire symptom this product exists to repair: the thing people actually see is Finder showing today.</li>
+          <li><strong>It works in Chromium only.</strong> It says so itself, because it edits photos in place and needs the File System Access API. Save the Dates runs anywhere, because it hands back a copy instead of writing into a folder.</li>
+          <li><strong>It writes to your originals</strong>, and tells you to keep the export until you have checked the result. Nothing here is ever written to an original.</li>
+          <li><strong>Its times are the local machine's clock</strong>, and it says travel photos may therefore be hours out. Decision 1 is the opposite bet, taken before there was anyone to take it against.</li>
+        </ul>
+        <p>It also loads PostHog. That is an ordinary choice and not a scandal, but "no telemetry, and you can prove it by turning your network off" is now a difference between two live products rather than a promise made into an empty room.</p>
+      </div>
+
+      <div class="callout callout-notice">
+        <h4>What this cost, and what I would not do about it</h4>
+        <p>Losing an exclusivity claim is the cheapest thing that happened here, because the claim was never the moat. The uncomfortable part is the temptation it creates: the obvious way to match a tool that edits your folder in place is to edit the folder in place, and that is the one trade I will not make. It is Chromium only, it writes to originals, and it still cannot set the file date. Taking it would spend three of the four differences above to save one unzip.</p>
+        <p>There is a real tension left unresolved, and it belongs here rather than in a footnote. Apple Photos and Immich both import a <em>folder</em>. This tool hands back <em>zips</em>. Removing the unzip at the front while leaving one at the back is a smaller win than it sounds, and I do not have a way to close it that does not cost the moat.</p>
       </div>
     </section>
 
