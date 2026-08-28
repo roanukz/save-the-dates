@@ -13,7 +13,7 @@ starts with the core and an empty profile, and every entry it adds has to be arg
 - One focus ring — 2px primary-400 at 2px offset — on every control type, \`:focus-visible\` only.
 - The three button geometries and their five states; input, link, card, notice banner.
 - The eight inline SVG icons, and the closed-set rule.
-- **Never hue alone**: every status carries hue + icon + word, and must survive greyscale.
+- **Never hue alone**: every status carries hue + icon + word, and must survive grayscale.
 - **Notice as a fifth semantic**, with its copy rules: the label is always "Good to know", and a
   notice names the fact and then says what happens to the user's files.
 - Error copy shape: what happened → what happened to your data → the fix.

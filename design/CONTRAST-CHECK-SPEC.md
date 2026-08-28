@@ -12,9 +12,9 @@ contrast numbers — this page is the only source of them. The owner runs it and
   repo and note the dependency in a comment.
 - Prints its own copy of the pairing list, so a reader can see what was and was not checked.
 
-## Maths (implement exactly this, do not approximate)
+## Math (implement exactly this, do not approximate)
 1. Parse hex → sRGB 0–1.
-2. Linearise each channel: \`c <= 0.03928 ? c/12.92 : ((c+0.055)/1.055)**2.4\`.
+2. Linearize each channel: \`c <= 0.03928 ? c/12.92 : ((c+0.055)/1.055)**2.4\`.
 3. Relative luminance \`L = 0.2126R + 0.7152G + 0.0722B\`.
 4. Ratio \`(max(L1,L2)+0.05) / (min(L1,L2)+0.05)\`.
 5. Round **down** to 2 decimals for display, but compare with the unrounded value. Never let a
@@ -75,7 +75,7 @@ semantic-400 solid fill.
 - A copy-to-clipboard button producing a plain-text summary of failures only, so the owner can
   paste it straight back into a conversation. Format:
   \`FAIL  light  notice-700 on notice-50  14px/400  3.98 (needs 4.5)\`
-- Render the page in the system's own type and colour — it is the first real test of the tokens.
+- Render the page in the system's own type and color — it is the first real test of the tokens.
 - Include the marginal pairings the designer flagged "verify" in a highlighted group at the top:
   neutral-500 muted text on \`#ffffff\` at 13px · neutral-300 borders on neutral-50 and \`#ffffff\` ·
   warning-600 on warning-50 · the focus ring on every surface · notice-700 on notice-50 ·

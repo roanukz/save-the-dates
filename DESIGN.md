@@ -1,6 +1,6 @@
 # Design system
 
-Direction A: cool grey neutrals, anodised teal primary, 6px radius, 1.25 type ratio,
+Direction A: cool gray neutrals, anodized teal primary, 6px radius, 1.25 type ratio,
 system fonts only.
 
 The raw values live in [tokens.css](tokens.css). This file is the reasoning — what each
@@ -15,7 +15,7 @@ or inline.
 
 ---
 
-## Colour
+## Color
 
 Eight ramps: one neutral, one primary, five semantics, one accent. Eleven steps each,
 except accent, which needs five.
@@ -91,7 +91,7 @@ Its text step is **700, not 600**. At 600 it reads as ordinary body text.
 
 Champagne brass at hue 84. Two roles only: the proportional bars in the summary tiles,
 and the signature moment. **Never status, never interaction** — at 84° it sits inside
-warning's neighbourhood and would be read as a caution.
+warning's neighborhood and would be read as a caution.
 
 ---
 
@@ -99,8 +99,8 @@ warning's neighbourhood and would be read as a caution.
 
 Every status carries **hue + a 16px icon + a text word.**
 
-Acceptance test: remove all colour and every state must still be readable. The unmatched
-table row carries four non-colour signals — a 4px left bar (warning gets 3px), the X
+Acceptance test: remove all color and every state must still be readable. The unmatched
+table row carries four non-color signals — a 4px left bar (warning gets 3px), the X
 icon, the words "Couldn't match", and a dotted underline plus 650 weight on the filename.
 
 The icon set is **closed at eight**. A ninth icon means a new meaning, and a new meaning
@@ -151,7 +151,7 @@ about 480px. **Banned: 999px pills** (reads as marketing) and **0px** (reads unf
 against a 1px cool border).
 
 **Elevation — two levels.** Level 1: cards, tiles, table. Level 2: only the sticky
-progress panel and the expanded-table header. Shadow colour is neutral-950 at low alpha,
+progress panel and the expanded-table header. Shadow color is neutral-950 at low alpha,
 never pure black. In dark mode, use surface lightness instead.
 
 ---
@@ -171,12 +171,12 @@ never icon-alone**. Total height 44px — the touch-target floor hit exactly.
   invites a second click) and **asks twice** — the only button in the system that does.
 
 **Link.** primary-700, 1px underline at `text-underline-offset: 2px`, **always
-underlined** — colour alone is not a link signal.
+underlined** — color alone is not a link signal.
 
 **Notice banner.** notice-50 background, 1px notice-200 border, `border-left: 3px solid
 notice-600`, radius 6px, `padding: 12px 14px`, `gap: 9px`.
 
-Copy rules that travel with the colour:
+Copy rules that travel with the color:
 
 - The label is always **"Good to know"** — never "Note", "Warning", or "Heads up".
 - A notice **names the fact and then says what happens to the user's files.** "Can't be
@@ -245,7 +245,7 @@ its *role* — measurement, never status — is portable.
 
 ## Where this borrows from Apple, and where it diverges
 
-**Borrowed knowingly:** the cool grey neutral scale and negative tracking at display
+**Borrowed knowingly:** the cool gray neutral scale and negative tracking at display
 sizes · icon + text label on every action, never icon-alone (Photos) · summary-first with
 detail one click behind, distraction stripped (News) · a 6px control radius · system fonts
 as a first-class decision rather than a fallback.

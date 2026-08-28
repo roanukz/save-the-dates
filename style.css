@@ -1,7 +1,7 @@
 /* ===========================================================================
    Takeout Fixer - the look.
 
-   Every colour, size and space in here comes from tokens.css. Nothing reaches
+   Every color, size and space in here comes from tokens.css. Nothing reaches
    for a raw ramp value directly, which is what makes dark mode a matter of
    remapping roles rather than rewriting components.
    =========================================================================== */
@@ -224,8 +224,8 @@ a:hover, .disclosure:hover {
 
 
 /* --- Screen 1: the drop zone -------------------------------------------
-   The three states differ by BORDER as well as by colour - dashed, solid,
-   thick dashed - so they survive being seen without colour. */
+   The three states differ by BORDER as well as by color - dashed, solid,
+   thick dashed - so they survive being seen without color. */
 
 .dropzone {
   border: 2px dashed var(--border-strong);
@@ -282,7 +282,7 @@ a:hover, .disclosure:hover {
    relationship with this tool, so it is not fine print. */
 .dz-privacy {
   font-size: var(--size-16); line-height: var(--lh-16);
-  /* Body colour, and a role token rather than a ramp step. --neutral-600 was
+  /* Body color, and a role token rather than a ramp step. --neutral-600 was
      hardcoded here; the raw ramp is not remapped for dark mode, so the single
      most important sentence on the page sat at 2.7:1 against a dark panel.
      --text-muted fixed dark and left light at 4.2:1, so it gets full body
@@ -300,7 +300,7 @@ a:hover, .disclosure:hover {
 
 /* Two ways in now: the zips as Google sent them, or a folder already unpacked.
    The zip is the primary button because it is what people actually have, and
-   .actions on its own would line them up left inside a centred panel. */
+   .actions on its own would line them up left inside a centered panel. */
 .dz-actions {
   justify-content: center;
   margin-top: 0;
@@ -388,7 +388,7 @@ a:hover, .disclosure:hover {
 @keyframes sheen { to { transform: translateX(100%); } }
 
 /* Signal 3: the filename ticker. This is the real anti-frozen device - a name
-   the user recognises, changing. */
+   the user recognizes, changing. */
 .ticker {
   background: var(--page-bg);
   border: 1px solid var(--border-subtle);
@@ -462,7 +462,7 @@ a:hover, .disclosure:hover {
 /* --- Screen 3: the tiles -------------------------------------------------
    Three facts, weighted by a bar so the proportion is felt rather than read.
    "Can't be fixed" is notice slate, never warning amber: the user did nothing
-   wrong, and colouring it as a caution would say they had. */
+   wrong, and coloring it as a caution would say they had. */
 
 .tiles {
   display: grid;
@@ -677,7 +677,7 @@ thead th {
 
 /* A date read out of the photo is a fact. A date that only exists in Google's
    sidecar is a record of when the file arrived. Those two must never look the
-   same, so they differ in weight and colour, not only in wording. */
+   same, so they differ in weight and color, not only in wording. */
 .src-photo  { color: var(--success-deep); font-weight: 600; }
 .src-google { color: var(--warning-deep); font-weight: 600; }
 

@@ -7,16 +7,16 @@
   because a 1x asset gets scaled up on high-DPI screens and softens.
   Edit here, not there - see the README for the render command.
 
-  LAYOUT IS CENTRED ON PURPOSE. LinkedIn's profile "Featured" section does not
-  honour the 1.91:1 ratio: it centre-crops the image into a roughly square
+  LAYOUT IS CENTERED ON PURPOSE. LinkedIn's profile "Featured" section does not
+  honor the 1.91:1 ratio: it center-crops the image into a roughly square
   portrait frame, about 0.91:1, which throws away half the width. An earlier
   two-column version lost the word "Save" and half the photo card there.
 
-  So every element lives inside a 540px-wide centre column (x 330..870). That
-  survives the Featured crop AND still reads as a deliberate centred card at
+  So every element lives inside a 540px-wide center column (x 330..870). That
+  survives the Featured crop AND still reads as a deliberate centered card at
   full width. Do not push content out toward the edges - it will be cut.
 
-  Colours are role values from tokens.css dark mode, copied literally because
+  Colors are role values from tokens.css dark mode, copied literally because
   an SVG cannot read a stylesheet. The accent ramp is deliberately unused - it
   is reserved for measurement.
 -->
@@ -33,7 +33,7 @@
   <path d="M 490 225 L 556 158 L 604 203 L 636 175 L 710 225 Z" fill="#545c6b"/>
   <path d="M 490 225 L 538 181 L 586 225 Z" fill="#6f7887"/>
 
-  <!-- Dates are left-aligned inside the card, not centred: centring them made
+  <!-- Dates are left-aligned inside the card, not centered: centering them made
        the tick collide with the last digit of the corrected date. -->
 
   <!-- the wrong date Google left behind -->

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Contrast check — Takeout Fixer design system</title>
 <style>
-  /* This page is rendered in the system's own type and colour on purpose:
+  /* This page is rendered in the system's own type and color on purpose:
      it is the first real test of the tokens. It deliberately does NOT import
      tokens.css, because it must keep working as a single self-contained file. */
   :root {
@@ -121,17 +121,17 @@ const T = {
   accent:  { 100:'#faf7ee',200:'#e6d9b3',400:'#c2a862',600:'#8f7833',800:'#5f5027' }
 };
 
-/* --- The maths. Implemented exactly as specified, not approximated. ------- */
+/* --- The math. Implemented exactly as specified, not approximated. ------- */
 
 function toRgb(hex) {
   const h = hex.replace('#', '');
   return [parseInt(h.slice(0,2),16)/255, parseInt(h.slice(2,4),16)/255, parseInt(h.slice(4,6),16)/255];
 }
-function linearise(c) {
+function linearize(c) {
   return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 }
 function luminance(hex) {
-  const [r,g,b] = toRgb(hex).map(linearise);
+  const [r,g,b] = toRgb(hex).map(linearize);
   return 0.2126*r + 0.7152*g + 0.0722*b;
 }
 function ratio(a, b) {

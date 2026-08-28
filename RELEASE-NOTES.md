@@ -45,7 +45,7 @@ checked. Both were then measured against two real Takeout exports and both were 
 
 The design survived both, because it never depended on either. The first cost a
 performance argument that would otherwise have been published as fact. The second changed
-behaviour: a packing timestamp is now treated as no date at all, it is never written inside
+behavior: a packing timestamp is now treated as no date at all, it is never written inside
 a file, and the results screen says so in words.
 
 ### What it now refuses to do
@@ -122,6 +122,6 @@ sample library is committed to this repository, because a real export is persona
 
 A single page that gives every file in a Takeout export its real capture date and fills in
 the EXIF of the JPEGs genuinely missing one. Timezones derived from the photo's GPS
-position rather than from the machine running the tool. Dates labelled with where they came
+position rather than from the machine running the tool. Dates labeled with where they came
 from, and Google's upload timestamps kept out of your photos unless you ask for them.
 Client-side, no install, no account, no telemetry. Input was a folder you unpacked yourself.

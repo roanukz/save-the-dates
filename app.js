@@ -614,7 +614,7 @@ const TIFF_TYPE_SIZES = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 6: 1, 7: 1,
  * and whether there is a usable location.
  *
  * WHY NOT USE PIEXIF FOR THIS. piexif refuses an entire file the moment it meets
- * a tag type it does not recognise, and both RAW files and genuine HEIC photos
+ * a tag type it does not recognize, and both RAW files and genuine HEIC photos
  * carry those routinely - a real export had a DNG and three HEICs that it threw
  * on, which would have been reported on screen as "no date" when all four had
  * one. We only need two facts, so a reader that steps over what it does not
@@ -1274,7 +1274,7 @@ dropZone.addEventListener('dragenter', function (event) {
   event.preventDefault();
   dragDepth++;
   // A question about a missing part is waiting for an answer. Merely moving the
-  // pointer across the panel must not count as answering it: the old behaviour
+  // pointer across the panel must not count as answering it: the old behavior
   // replaced the question with the dragover look and then, on leaving, with the
   // idle one, so the chosen files and the warning both vanished without a click.
   if (dropState === 'incomplete') return;
@@ -2090,7 +2090,7 @@ function showResults() {
   previewReportButton.disabled = false;
 
   // The results report describes a run, so until a run has happened there is
-  // nothing for it to describe. Greyed out rather than hidden, so it is visible
+  // nothing for it to describe. Grayed out rather than hidden, so it is visible
   // that a record will exist afterwards.
   resultsReportButton.disabled = !lastRunSummary;
 
@@ -2461,7 +2461,7 @@ const STATUS_WORDS = {
 };
 
 
-/** The filter chips. Each one carries its own icon, not just its colour. */
+/** The filter chips. Each one carries its own icon, not just its color. */
 function drawChips() {
   const all = allTableRows();
   const counts = {
@@ -2633,9 +2633,9 @@ function drawPager(totalRows, pages) {
 // new meaning needs a new word before it needs a picture.
 //
 // The shapes are deliberately different from each other, not just differently
-// coloured: notice is the only square, warning the only triangle, and info,
+// colored: notice is the only square, warning the only triangle, and info,
 // success and error are circles that differ in what is inside them. They stay
-// apart with every drop of colour removed.
+// apart with every drop of color removed.
 
 const ICON_PATHS = {
   success:  '<circle cx="8" cy="8" r="6.25"/><path d="m5.25 8.25 1.9 1.9 3.6-4.1"/>',

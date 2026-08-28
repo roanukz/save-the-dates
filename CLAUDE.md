@@ -13,7 +13,7 @@ only 3 of those were genuinely HEIC-encoded; Google had converted the other 4 to
 while keeping the .HEIC extension. The sidecar is only the sole copy for photos that
 never had EXIF, and for edits made inside Google Photos.
 
-- HEIC/RAW/video processing is CANCELLED, not deferred. They came out intact. Do not add
+- HEIC/RAW/video processing is CANCELED, not deferred. They came out intact. Do not add
   it, and do not add a WASM ExifTool.
 - A date that exists only in Google's sidecar is when the photo ENTERED the library, not
   when it was taken. In the test export, 10 such photos shared a 16-second window. Never
@@ -62,6 +62,18 @@ that claims otherwise.
 - zip.js - reads a Takeout .zip in place, without unpacking it
 - style.css - components, tokens.css - the design tokens
 - vendor/ - piexif, jszip, tz-lookup, all loaded from disk
+
+## House style for anything a reader sees
+- **US spelling throughout.** Color, behavior, gray, center, license, program,
+  math, aging, analog, judgment, canceled, labeled, while, among. This covers
+  prose, headings, code identifiers and comments, not just visible copy: the
+  contrast checker's `linearize` is spelled that way for the same reason. The
+  exceptions are things that are not English words, such as `aria-labelledby`,
+  and anything quoted verbatim from a source file or a third party, which is
+  data and is never edited.
+- `tokens.css`, `DESIGN.md`, `design/` and `contrast-check.html` are copied
+  between this repo and its siblings. Fixing wording in one and not the others
+  makes them diverge, so apply the same edit everywhere or none.
 
 ## Rules for you
 - Ask before adding any dependency.

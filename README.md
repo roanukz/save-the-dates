@@ -136,7 +136,7 @@ because a 1× asset is scaled up on high-DPI screens and visibly softens. The
 `og:image:width` / `og:image:height` tags must match whatever is committed.
 
 To regenerate it after editing the SVG, render at 4× and downsample. LibreOffice's
-own rasteriser is adequate, but supersampling gives noticeably cleaner edges:
+own rasterizer is adequate, but supersampling gives noticeably cleaner edges:
 
 ```
 soffice --headless \
@@ -165,13 +165,13 @@ archive is refused rather than quietly returning less. That last group matters m
 zip that half-reads produces a result that looks perfectly healthy, which is the one
 failure this tool exists to prevent.
 
-## Licence
+## License
 
 MIT, see [LICENSE](LICENSE).
 
-The three libraries in `vendor/` are third-party and keep their own licences:
+The three libraries in `vendor/` are third-party and keep their own licenses:
 
-| File | Source | Licence |
+| File | Source | License |
 |---|---|---|
 | `piexif.js` | `piexifjs@1.0.6` | MIT |
 | `jszip.min.js` | `jszip@3.10.1` | MIT or GPLv3 |

@@ -23,7 +23,7 @@ Rejected:
   something the user needs to feel, not read.
 - **Option iii (one segmented bar + legend)** — proportion is unmissable and it's the most
   compact, but the 44-file segment is 4% wide, so its number can't fit and one of three facts gets
-  demoted to the legend. It also reads as data visualisation, which invites analysis where these
+  demoted to the legend. It also reads as data visualization, which invites analysis where these
   users want a verdict. Breaks at 360px, where 4% is 12px.
 
 ## 2. Signature micro-interaction — **the tally tick ships**
@@ -48,7 +48,7 @@ the information.
 Rejected: **the download settle** (button icon + label crossfading to a success check and "Saved
 to your Downloads folder" over 160ms). Genuinely one moment and it answers the most common
 post-download question, but it lands after the anxiety has already resolved, and it would make a
-control change semantic colour — the one place in the system that would happen.
+control change semantic color — the one place in the system that would happen.
 
 **This is the only animation in the product**, other than the progress arc and bar sheen, which
 are liveness rather than signature and also stop under \`prefers-reduced-motion: reduce\`.

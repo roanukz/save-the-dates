@@ -8,7 +8,7 @@ small, free, single-purpose utilities, so this bundle marks every decision as ei
 **PORTABLE** (reuse unchanged) or **TUNED** (re-decide per product) — see §14 of the visual spec
 and the "Portable vs tuned" section below.
 
-Direction chosen by the owner: **A — cool grey neutrals, anodised teal primary, 6px radius,
+Direction chosen by the owner: **A — cool gray neutrals, anodized teal primary, 6px radius,
 1.25 type ratio, system fonts only.** (Direction B, a barely-warm neutral with a serif display
 face and brass primary, was rejected. Both are preserved in the spec file under badge \`1a\` / \`1b\`.)
 
@@ -39,7 +39,7 @@ profile. See \`CORE-AND-PROFILE.md\` for what belongs in each, and for Takeout F
 
 ## About the design files
 \`Takeout Fixer Design System.dc.html\` in this bundle is a **design reference created in HTML** —
-a one-page visual spec showing intended colour, type, spacing and component states. It is not
+a one-page visual spec showing intended color, type, spacing and component states. It is not
 production code to copy. Recreate the components in the target codebase's own environment using
 its established patterns; if the target has no framework yet, plain HTML + CSS with no build step
 is the correct choice here, because the product's core promise is that nothing leaves the browser.
@@ -50,7 +50,7 @@ No Google Fonts, no CDN, no webfonts, no icon fonts, no analytics, no external C
 Everything ships from the same origin or inline.
 
 ## Fidelity
-**High-fidelity.** Every colour, size, letter-spacing, radius, border and copy string in the spec
+**High-fidelity.** Every color, size, letter-spacing, radius, border and copy string in the spec
 is final and literal. Reproduce exact values.
 
 ## Design Tokens
@@ -62,7 +62,7 @@ is final and literal. Reproduce exact values.
 
 Plus \`--surface: #ffffff\` — white sits outside the ramp and is its own token.
 
-### Primary — anodised teal, hue 197°
+### Primary — anodized teal, hue 197°
 | 50 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | 950 |
 |---|---|---|---|---|---|---|---|---|---|---|
 | #eef6f8 | #d7ebf0 | #b0d8e2 | #7fbdcd | #4c9bb0 | #2b7d94 | #1f6379 | #1a4f60 | #163f4c | #13333d | #0b2129 |
@@ -104,7 +104,7 @@ confirmations ("Dates are converted to your computer's current timezone").
 
 Both accent slots go to this one hue in two roles: **400/600 for the proportional bars in the
 summary tiles**, **200 for the signature moment**. Never for status, never for interaction — at
-84° it is inside warning's neighbourhood.
+84° it is inside warning's neighborhood.
 
 ### Step mapping — LIGHT
 | Role | Neutral | Primary | Semantic |
@@ -219,7 +219,7 @@ sections · 48 major break · 64 page top (desktop) · 96 around the first-scree
 --elev-2: 0 4px 12px rgba(16,20,26,0.10), 0 1px 2px rgba(16,20,26,0.06);
 \`\`\`
 Level 1: cards, tiles, table. Level 2: only the sticky progress panel and the expanded-table
-header. Shadow colour is neutral-950 at low alpha, never pure black. In dark mode use surface
+header. Shadow color is neutral-950 at low alpha, never pure black. In dark mode use surface
 lightness instead (900 / 800).
 
 ## Assets — the eight icons
@@ -242,11 +242,11 @@ needs a new word first.
 
 Shape-level distinguishability is deliberate: **notice is the only square, warning the only
 triangle, info and success and error are circles differing in interior mark.** They remain
-separable with colour removed.
+separable with color removed.
 
 ## Never encode meaning in hue alone
-Every status carries hue **+ a 16px icon + a text word**. Acceptance test: remove all colour and
-every state must still be readable. The unmatched table row carries four non-colour signals —
+Every status carries hue **+ a 16px icon + a text word**. Acceptance test: remove all color and
+every state must still be readable. The unmatched table row carries four non-color signals —
 a **4px** left bar (warning gets 3px), the X icon, the words "Couldn't match", and a dotted
 underline plus 650 weight on the filename.
 
@@ -254,10 +254,10 @@ underline plus 650 weight on the filename.
 
 ### 1. First screen — drop zone
 Purpose: the whole relationship. Three states, distinguished by **border treatment** as well as
-colour, so they survive greyscale.
+color, so they survive grayscale.
 
 - **Idle** — \`2px dashed\` neutral-400, radius 10px, background neutral-50, padding 32px 24px,
-  centred. 32px folder icon (stroke 1.3 at that size), 20px headline "Drag your Takeout folder
+  centered. 32px folder icon (stroke 1.3 at that size), 20px headline "Drag your Takeout folder
   here", 16px neutral-600 "Nothing is uploaded.", then the secondary button "Choose folder".
   The privacy line sits **above** the button, not in fine print.
 - **Drag-over** — \`2px solid\` primary-500 + \`inset 0 0 0 4px\` primary-100, background
@@ -278,7 +278,7 @@ padding 24px, elevation 1. **Five independent liveness signals** so no single st
    white sheen sweeping across it — \`2.4s ease-in-out infinite\`, so the bar moves even when the
    percentage does not.
 3. **Filename ticker** — the real anti-frozen device. A 13px mono line in a neutral-50 inset
-   panel labelled "NOW READING", re-rendered per file with a 140ms fade-up
+   panel labeled "NOW READING", re-rendered per file with a 140ms fade-up
    (\`opacity 0→1, translateY 2px→0\`), single-line with ellipsis.
 4. Elapsed counter, ticking every second regardless of progress ("4 min 12 s elapsed").
 5. Three running tallies (Fixed / Can't be fixed / No metadata) growing independently of the bar.
@@ -287,7 +287,7 @@ Also: heading 25px "Fixing your photos"; a right-aligned **coarse, honest** esti
 minutes left", never "2:47", hidden until 30 files are done and only ever rounded down; the count
 "412 of 1,204 files" at 16px/600 tabular; a notice banner "You can switch to another tab — this
 keeps running. Closing the tab stops it, and no file will be half-written."; and a secondary
-button labelled **"Stop — keep the 108 already fixed"**. "Cancel" alone implies losing them.
+button labeled **"Stop — keep the 108 already fixed"**. "Cancel" alone implies losing them.
 
 **Prohibited here:** an indeterminate barber-pole bar (it is the universal signal for "we don't
 know", the one thing you cannot say to someone waiting on their photos), and a spinner alone.
@@ -386,7 +386,7 @@ error-700 following the mandatory three-part shape: **what happened, then the re
 the fix** — e.g. "**Can't use "/"** — a slash isn't allowed in a filename. Try a hyphen."
 
 ### Link
-primary-700, 1px underline at \`text-underline-offset: 2px\`, **always underlined** — colour alone
+primary-700, 1px underline at \`text-underline-offset: 2px\`, **always underlined** — color alone
 is not a link signal. Hover: primary-800, underline 2px. Focus-visible: the standard ring.
 Dark mode: primary-300. No external links in the product; if one is ever needed it carries the
 words "opens a new tab" in text, not an icon.
@@ -401,7 +401,7 @@ notice-50 background, 1px notice-200 border, \`border-left: 3px solid notice-600
 \`padding: 12px 14px\`, \`gap: 9px\`. 16px notice icon, then a 13px/650 notice-800 label and 14px
 neutral-700 body.
 
-**Copy rules that travel with the colour:**
+**Copy rules that travel with the color:**
 - The label is always **"Good to know"** — never "Note", "Warning", or "Heads up".
 - A notice **names the fact and then says what happens to the user's files.** "Can't be fixed"
   alone is frightening; "left exactly as they are" is the half that removes the fear.
@@ -471,7 +471,7 @@ not) · the brass accent itself, though its *role* — measurement, never status
 ## Where this borrows from Apple, and where it diverges
 State this in \`DESIGN.md\` too; the owner asked for it explicitly.
 
-**Borrowed knowingly:** the cool grey neutral scale and negative tracking at display sizes ·
+**Borrowed knowingly:** the cool gray neutral scale and negative tracking at display sizes ·
 icon + text label on every action, never icon-alone (Photos) · summary-first with detail one click
 behind, distraction stripped (News) · a 6px control radius · system fonts as a first-class
 decision rather than a fallback.
